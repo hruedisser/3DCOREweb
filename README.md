@@ -9,9 +9,7 @@ First install new conda environment:
     conda create -n "3dcorenv" python=3.10.10
     conda activate 3dcorenv
     
-* Optional (to avoid using heliosat, download [data archive](https://doi.org/10.6084/m9.figshare.11973693.v23) at and place the files in 3DCOREweb/src/coreweb/dashcore/data/archive):
-
-Install the latest version of HelioSat manually using `git`:
+Install the latest version of HelioSat manually using `git`: (Optional - to avoid using heliosat, download [data archive](https://doi.org/10.6084/m9.figshare.11973693.v23) at and place the files in 3DCOREweb/src/coreweb/dashcore/data/archive)
 
     git clone https://github.com/ajefweiss/HelioSat
     cd HelioSat
