@@ -1,0 +1,135 @@
+{
+    "cme_launch_offset": {
+        "index": 0,
+        "name": "launch time",
+        "distribution": "uniform",
+        "default_value": 0,
+        "maximum": 3600,
+        "minimum": -3600,
+        "boundary": "continuous",
+        "label": "t_0"
+    },
+    "cme_longitude": {
+        "index": 1,
+        "name": "longitude",
+        "distribution": "uniform",
+        "maximum": 360,
+        "minimum": -180,
+        "boundary": "periodic",
+        "label": "lon"
+    },
+    "cme_latitude": {
+        "index": 2,
+        "name": "latitude",
+        "distribution": "uniform",
+        "maximum": 90,
+        "minimum": -90,
+        "boundary": "periodic",
+        "label": "lat"
+    },
+    "cme_inclination": {
+        "index": 3,
+        "name": "inclination",
+        "distribution": "uniform",
+        "maximum": 360,
+        "minimum": 0,
+        "boundary": "periodic",
+        "label": "inc"
+    },
+
+    "cme_diameter_1au": {
+        "index": 4,
+        "name": "diameter",
+        "distribution": "uniform",
+        "maximum": 0.35,
+        "minimum": 0.05,
+        "boundary": "continuous",
+        "label": "d_{1au}"
+    },
+    "cme_aspect_ratio": {
+        "index": 5,
+        "name": "aspect ratio",
+        "distribution": "uniform",
+        "maximum": 6,
+        "minimum": 1,
+        "boundary": "continuous",
+        "label": "\\delta"
+    },
+
+    "cme_launch_radius": {
+        "index": 6,
+        "name": "initial radius",
+        "distribution": "uniform",
+        "default_value": 20,
+        "maximum": 100,
+        "minimum": 5,
+        "boundary": "continuous",
+        "label": "r_0"
+    },
+    "cme_launch_velocity": {
+        "index": 7,
+        "name": "velocity",
+        "distribution": "uniform",
+        "maximum": 3000,
+        "minimum": 400,
+        "boundary": "continuous",
+        "label": "v_0"
+    },
+    "t_factor": {
+        "index": 8,
+        "name": "t factor",
+        "distribution": "uniform",
+        "maximum": 250,
+        "minimum": -250,
+        "boundary": "continuous",
+        "label": "\\tau"
+    },
+    "cme_expansion_rate": {
+        "index": 9,
+        "name": "cme expansion rate",
+        "distribution": "uniform",
+        "default_value": 1.14,
+        "maximum": 2,
+        "minimum": 0.3,
+        "boundary": "continuous",
+        "label": "n_a"
+    },
+    "magnetic_decay_rate": {
+        "index": 10,
+        "name": "magnetic field decay",
+        "distribution": "uniform",
+        "default_value": 1.64,
+        "maximum": 2,
+        "minimum": 1,
+        "boundary": "continuous",
+        "label": "n_b"
+    },
+
+    "magnetic_field_strength_1au": {
+        "index": 11,
+        "name": "axial strength",
+        "distribution": "uniform",
+        "maximum": 150,
+        "minimum": 5,
+        "boundary": "continuous",
+        "label": "b_{1au}"
+    },
+    "background_drag": {
+        "index": 12,
+        "name": "background drag",
+        "distribution": "uniform",
+        "maximum": 3,
+        "minimum": 0.2,
+        "boundary": "continuous",
+        "label": "\\gamma"
+    },
+    "background_velocity": {
+        "index": 13,
+        "name": "background velocity",
+        "distribution": "uniform",
+        "maximum": 700,
+        "minimum": 100,
+        "boundary": "continuous",
+        "label": "v_{sw}"
+    }
+}
