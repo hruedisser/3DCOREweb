@@ -41,7 +41,31 @@ By default, no event is selected. The user is asked to continue with one of thre
 
 Using the Catalog option, several filters can be applied to search the list of available events.
 
-![image](https://github.com/hruedisser/3DCOREweb/assets/75985139/2ab73d16-3192-4818-921a-0f92bf02ac32)
+![image](https://github.com/hruedisser/3DCOREweb/assets/75985139/8f3ccacf-11e0-4047-94c4-6921835d2ea9)
+
+Clicking the Submit button will start the data preprocessing.
+
+![image](https://github.com/hruedisser/3DCOREweb/assets/75985139/f6b1053f-4948-411d-997b-5a1215153c21)
+
+The loading symbol indicates that the data preprocessing is still in progress.
+
+![image](https://github.com/hruedisser/3DCOREweb/assets/75985139/97fd805b-09c4-43b9-9ed8-42245b1cb1c2)
+
+Once it is done, the loading symbol is replaced by a checkmark and the user can continue to the next step.
+
+![image](https://github.com/hruedisser/3DCOREweb/assets/75985139/26501687-ceb0-471d-8b15-b3734f636252)
+
+On the Plot subpage, a 2D plot showing the spacecraft and planet positions around the time of the event can be found. The user can use the checkboxes to adjust which components should be visible in the plot.
+
+![image](https://github.com/hruedisser/3DCOREweb/assets/75985139/d407e3ff-e500-4904-8619-250d4c60da35)
+
+On the bottom of the page the insitu data measured by the previously chosen spacecraft can be seen. The colored background indicates the boundaries of the cataloged event.
+
+![image](https://github.com/hruedisser/3DCOREweb/assets/75985139/5208d60d-c780-4d21-9c17-1315ebcc1a03)
+
+Adding a synthetic spacecraft, the user can adjust its position and reload the plot.
+
+![image](https://github.com/hruedisser/3DCOREweb/assets/75985139/f7e94a98-da7e-4b26-9c59-c6190c22b4e5)
 
 
 
