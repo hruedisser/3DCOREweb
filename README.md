@@ -34,6 +34,11 @@ Install all necessary packages:
 To start the application:
 
     3DCOREweb start
+
+By default, no event is selected. The user is asked to continue with one of three options to select an event, that will be processed. To speed up data loading during the usage of the app, the user can choose to download the Data Archive using the according button.
+
+![image](https://github.com/hruedisser/3DCOREweb/assets/75985139/d11e5fe7-52c4-4b97-a5dc-d26ad469e205)
+
     
 ------------
 ## Notes on HelioSat
