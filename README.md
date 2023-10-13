@@ -39,6 +39,12 @@ By default, no event is selected. The user is asked to continue with one of thre
 
 ![image](https://github.com/hruedisser/3DCOREweb/assets/75985139/d11e5fe7-52c4-4b97-a5dc-d26ad469e205)
 
+Using the Catalog option, several filters can be applied to search the list of available events.
+
+![image](https://github.com/hruedisser/3DCOREweb/assets/75985139/2ab73d16-3192-4818-921a-0f92bf02ac32)
+
+
+
     
 ------------
 ## Notes on HelioSat
