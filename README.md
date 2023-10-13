@@ -115,6 +115,9 @@ The error will be reduced with each iteration.
 
 ![image](https://github.com/hruedisser/3DCOREweb/assets/75985139/91f7d491-8abe-42e5-8483-26a5efe5a74e)
 
+Once either the minimum RMSE or the maximum of iterations is reached, the fitting will be terminated.
+
+![image](https://github.com/hruedisser/3DCOREweb/assets/75985139/b229007b-6191-4949-ba28-ae6b1485890e)
 
     
 ------------
