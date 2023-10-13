@@ -119,6 +119,12 @@ Once either the minimum RMSE or the maximum of iterations is reached, the fittin
 
 ![image](https://github.com/hruedisser/3DCOREweb/assets/75985139/b229007b-6191-4949-ba28-ae6b1485890e)
 
+The results can then be loaded to the app. This might take a while when a fit is loaded for the first time, as the results are being converted.
+
+![image](https://github.com/hruedisser/3DCOREweb/assets/75985139/3673c442-a919-421f-85ba-55b352ec56ab)
+
+
+
     
 ------------
 ## Notes on HelioSat
