@@ -123,6 +123,21 @@ The results can then be loaded to the app. This might take a while when a fit is
 
 ![image](https://github.com/hruedisser/3DCOREweb/assets/75985139/3673c442-a919-421f-85ba-55b352ec56ab)
 
+Loading a fit will adjust all fitting parameters as they were set during the fitting process. Additionally, the ensemble members of the last fitting iteration are shown in a table. The statistics of the run are shown below. These tables can be saved as csv files using the download button.
+
+![image](https://github.com/hruedisser/3DCOREweb/assets/75985139/a206b439-984c-4b7c-9d8b-80521999f11a)
+
+The 2 sigma area of the fitting results can also be shown in the insitu plot directly.
+
+![image](https://github.com/hruedisser/3DCOREweb/assets/75985139/ea4dd2e8-99ba-46a9-88bf-77ce4da4e5a7)
+
+Furthermore, the table can be sorted by any parameter and one or more particular ensemble members can be plotted.
+
+![image](https://github.com/hruedisser/3DCOREweb/assets/75985139/c90b58cc-6077-438f-82aa-5d1f42d7186a)
+
+Selecting a single ensemble member, the user can adjust the model sliders accordingly.
+
+![image](https://github.com/hruedisser/3DCOREweb/assets/75985139/8639480e-e8cc-4f87-aba7-8b69ed66036d)
 
 
     
