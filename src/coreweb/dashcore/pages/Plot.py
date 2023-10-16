@@ -28,6 +28,8 @@ register_page(__name__, icon="streamline:money-graph-analytics-business-product-
 
 #matplotlib.use('agg')
 
+app = dash.get_app()
+
 reload_icon = dmc.ThemeIcon(
                      DashIconify(icon='ci:arrows-reload-01', style={"color": "black"}),
                      size=40,
@@ -281,7 +283,7 @@ def update_spacecraft_options(posstore):
 
 
 
-@callback(
+@app.long_callback(
     Output("posfig", "figure"),
     Output("posfig", "style"),  # Add this Output to control the display style
     Output("sliderfiginsitu", "figure"),
@@ -304,6 +306,9 @@ def update_spacecraft_options(posstore):
     *[
             Input(id, "value") for id in modelstate
         ],
+    running=[
+        (Output(id, "disabled"), True, False) for id in modelstate 
+    ],
     
 )
 def update_posfig(posstore, rinput, lonput, latput, nclicks, togglerange, timeslider, dim, graph, infodata, launchlabel,plotoptions, spacecraftoptions, bodyoptions, refframe, *modelstatevars):

@@ -9,7 +9,7 @@ def start_function():
 
     warnings.filterwarnings("ignore")
     if len(sys.argv) == 2 and sys.argv[1] == "start":
-        app.run_server(port=8899, debug=True)
+        app.run_server() ##port=8899, debug=True)
 
 if __name__ == "__main__":
     start_function()
