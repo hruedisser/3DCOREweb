@@ -31,7 +31,12 @@ class custom_observer(object):
                 dtp = [datetime.datetime.fromisoformat(dt_str).replace(tzinfo=None) for dt_str in dtp]
 
             # Convert t_data to datetime objects without timezone information
-            t_data = [datetime.datetime.fromisoformat(dt_str).replace(tzinfo=None) for dt_str in t_data]
+            try:
+                t_data = [datetime.datetime.fromisoformat(dt_str).replace(tzinfo=None) for dt_str in t_data]
+            except:
+                t_data = [time for time in t_data]
+                
+            
 
             # Find indices where t_data falls within the specified date range
             start_time, end_time = dtp[0].replace(tzinfo=None), dtp[-1].replace(tzinfo=None)
@@ -41,11 +46,12 @@ class custom_observer(object):
             selected_b_data = np.array([b_data[i] for i in indices])
             selected_t_data = np.array([t_data[i] for i in indices])
             
-            if sampling_freq:
+            
+            
+            if sampling_freq and len(selected_t_data) > sampling_freq * 6:
                 # Return data at the specified sampling frequency
                 selected_b_data = selected_b_data[::sampling_freq]
                 selected_t_data = selected_t_data[::sampling_freq]
-    
 
             return selected_t_data, selected_b_data
         

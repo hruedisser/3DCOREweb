@@ -2,7 +2,7 @@ import numpy as np
 import copy
     
 def convert_RTN_to_HEEQ_mag(x, y, z, bx, by, bz):
-    print('conversion RTN to HEEQ') 
+    #print('conversion RTN to HEEQ') 
     
     heeq_bx = np.zeros(len(x))
     heeq_by = np.zeros(len(x))
@@ -36,8 +36,8 @@ def convert_HEEQ_to_RTN_mag(x,y,z,bx,by,bz, printer = True):
     for all spacecraft
     '''
 
-    if printer == True:
-        print('conversion HEEQ to RTN')            
+    #if printer == True:
+        #print('conversion HEEQ to RTN')            
     
     rtn_bx = np.zeros(len(x))
     rtn_by = np.zeros(len(x))

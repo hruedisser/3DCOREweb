@@ -667,6 +667,11 @@ resulttabcolumnDefs = [
         "field": 'Background Velocity',
         "sortable": True,  # Enable sorting for this column
     },
+    {
+        "headerName": 'Launch Time',
+        "field": 'Launch Time',
+        "sortable": True,  # Enable sorting for this column
+    },
 ]
 
 defaultresColDef = {
@@ -677,7 +682,7 @@ defaultresColDef = {
     "minWidth": 120,
 }
 
-resdf = pd.DataFrame(columns = ['Index','RMSE Ɛ','Longitude', 'Latitude', 'Inclination', 'Diameter 1 AU', 'Aspect Ratio', 'Launch Radius', 'Launch Velocity', 'T_Factor', 'Expansion Rate', 'Magnetic Decay Rate', 'Magnetic Field Strength 1 AU', 'Background Drag', 'Background Velocity'] )
+resdf = pd.DataFrame(columns = ['Index','RMSE Ɛ','Longitude', 'Latitude', 'Inclination', 'Diameter 1 AU', 'Aspect Ratio', 'Launch Radius', 'Launch Velocity', 'T_Factor', 'Expansion Rate', 'Magnetic Decay Rate', 'Magnetic Field Strength 1 AU', 'Background Drag', 'Background Velocity', 'Launch Time'] )
 
 rowresData = resdf.to_dict("records")
 
@@ -896,13 +901,20 @@ for i, var in enumerate(magslidervars):
     Input("ld-synresults", "n_clicks"),
     State("restable", "selectedRows"),
     State("launch_slider_fit","value"),
+    State("event-info", "data"),
 )
-def update_buttons(nlicks, selected_rows, sliderval):
+def update_buttons(nlicks, selected_rows, sliderval, infodata):
     if (nlicks == None) or (nlicks) == 0:
             raise PreventUpdate
     
     row = selected_rows[0]
     values_to_return = []
+    
+    date1 = round_to_hour_or_half(datetime.datetime.fromisoformat(infodata['begin'][0]))
+    date2 = datetime.datetime.strptime(row.get('Launch Time'), '%Y-%m-%d %H:%M')
+    
+    new_sliderval = (date2.replace(tzinfo=None) - date1.replace(tzinfo=None)).total_seconds() / 3600
+    
     for id in modelstate:
         key = {
             'longit': 'Longitude',
@@ -926,7 +938,7 @@ def update_buttons(nlicks, selected_rows, sliderval):
         else:
             values_to_return.append(no_update)
 
-    return values_to_return + [sliderval]
+    return values_to_return + [new_sliderval]
 
 
 
@@ -1009,7 +1021,7 @@ def update_table_or_load(n_ldtable, n_ldevt, n_load, n_dlt, n_add, n_sv_rowdata,
         if (n_load == None) or (n_load) == 0:
             raise PreventUpdate
          
-        tablenew, *fitting_values, resdfdic, t0, mean_row, statfig = load_fit(name, graph)
+        tablenew, *fitting_values, resdfdic, t0, mean_row, statfig = load_fit(name, graph)        
 
         dtval = infodata['begin'][0]
         dateFormat = "%Y-%m-%dT%H:%M:%S%z"
@@ -1161,3 +1173,4 @@ def update_table_or_load(n_ldtable, n_ldevt, n_load, n_dlt, n_add, n_sv_rowdata,
             print('observer settings loaded from ' + spacetable_path)
 
             return False, tablenew, *[no_update] * 25, no_update, no_update
+        

@@ -36,6 +36,14 @@ import coreweb.dashcore.utils.heliocats as hc
 
 from ...methods.method import BaseMethod
 
+import cdflib
+import base64
+import io
+import tempfile
+import re
+from sunpy.time import parse_time
+from scipy.io import readsav
+
 
 
 ############################################################
@@ -302,8 +310,7 @@ def plot_body3d(data_list, nowdate, color, sc):
     '''
     plots the current 3d position for a body
     '''
-    
-    data = np.array(data_list, dtype=object)
+    data = np.array(data_list, dtype=[('time', 'O'), ('r', '<f8'), ('lon', '<f8'), ('lat', '<f8'), ('x', '<f8'), ('y', '<f8'), ('z', '<f8')])
     df_columns = ['time', 'r', 'lon', 'lat', 'x', 'y', 'z']
     df = pd.DataFrame(data, columns=df_columns)
     
@@ -342,10 +349,10 @@ def process_coordinates(data_list, date, nowdate, color, sc):
     plot spacecraft 3d position from previously loaded data
     '''
     
-    data = np.array(data_list, dtype=object)
+    data = np.array(data_list, dtype=[('time', 'O'), ('r', '<f8'), ('lon', '<f8'), ('lat', '<f8'), ('x', '<f8'), ('y', '<f8'), ('z', '<f8')])
     df_columns = ['time', 'r', 'lon', 'lat', 'x', 'y', 'z']
     df = pd.DataFrame(data, columns=df_columns)
-    
+        
     df['time'] = pd.to_datetime(df['time'])  # Convert time column to datetime objects
     
     # Filter data based on date and nowdate
@@ -418,12 +425,56 @@ def process_coordinates(data_list, date, nowdate, color, sc):
 ############################################################
 ############################################################
 
-import cdflib
-import base64
-import io
-import tempfile
-import re
-from sunpy.time import parse_time
+
+def process_sav(list_of_names, list_of_contents):
+    '''
+    used to process uploaded cdf files
+    '''
+    
+    content_type, content_string = list_of_contents.split(',')
+    decoded = base64.b64decode(content_string)
+    # Create a temporary file to save the uploaded data
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".cdf") as tmp_file:
+        tmp_file.write(decoded)
+        sav_data = readsav(tmp_file.name)
+
+    name = list_of_names.split('/')[-1]
+    parts = name.split('_')
+    distance = parts[3].split('.')[0]
+    direction = parts[1]
+    
+    
+    date_format = '%Y/%m/%d %H:%M:%S.%f'
+    starttime = datetime.datetime.strptime(sav_data.time[0].decode('utf-8'), date_format)
+    endtime = datetime.datetime.strptime(sav_data.time[-1].decode('utf-8'), date_format)
+    
+    eventbegin = datetime.datetime.strptime(sav_data.mctime[0].decode('utf-8'), date_format)
+    eventend = datetime.datetime.strptime(sav_data.mctime[-1].decode('utf-8'), date_format)
+    
+    time_int = []
+    
+    while starttime <= endtime:
+        time_int.append(starttime)
+        starttime += datetime.timedelta(minutes=30)
+        
+    ll = np.zeros(np.size(sav_data.ibx),dtype=[('time',object),('br', float),('bt', float),('bn', float)] )
+    
+    ll = ll.view(np.recarray)  
+    
+    ll.time = time_int[:np.size(sav_data.ibx)]
+    ll.br = sav_data.ibx
+    ll.bt = sav_data.iby
+    ll.bn = sav_data.ibz
+    
+    uploadpath = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "data/uploaded")) 
+    
+    filename = name[:-4] + '.pickle'
+    
+    p.dump(ll, open(uploadpath + '/'+ filename, "wb"))
+    print("Created pickle file from sav: " +filename)
+            
+    
+    return eventbegin, eventend, "SYN", filename, direction, distance
 
 
 def process_cdf(list_of_names, list_of_contents):
@@ -632,6 +683,8 @@ def get_uploaddata(filename):
         sc = "STEREO-A"
     elif filename.startswith('bepi'):
         sc = "BEPI"
+    elif filename.startswith('pa'):
+        sc = "SYN"
         
     # Check for archive path
     archivepath = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "data/archive"))
@@ -649,14 +702,35 @@ def get_uploaddata(filename):
             
             
         
-    posdata = getarchivecoords(sc, begin= time[0]-datetime.timedelta(minutes = 10), end = time[-1], arrays =  '10T', datafile = datafile)
-    
-    heeq_bx, heeq_by, heeq_bz = hc.convert_RTN_to_HEEQ_mag(posdata.x,posdata.y, posdata.z, bx, by, bz)
-    b_HEEQ = np.column_stack((heeq_bx, heeq_by, heeq_bz))
+    if filename.startswith('pa'):
+        # Calculate the desired length
+        desired_length = len(time)
         
-    dt = time
-    b_RTN = np.column_stack((bx, by, bz))
-    pos = np.column_stack((posdata.x, posdata.y, posdata.z))
+        parts = filename.split('_')
+        distance = int(parts[3].split('.')[0])
+        direction = int(parts[1])
+        
+        # Create an array with NaN values
+        posdata = np.empty((desired_length, 3))
+
+        posdata[:, 0], posdata[:, 1], posdata[:, 2] = sphere2cart(float(distance)*0.00465047, np.deg2rad(-float(0)+90), np.deg2rad(float(direction)))
+        
+        heeq_bx, heeq_by, heeq_bz = hc.convert_RTN_to_HEEQ_mag( posdata[:, 0], posdata[:, 1],  posdata[:, 2], bx, by, bz)
+        b_HEEQ = np.column_stack((heeq_bx, heeq_by, heeq_bz))
+        
+        dt = time
+        b_RTN = np.column_stack((bx, by, bz))
+        pos = np.column_stack((posdata[:, 0], posdata[:, 1],  posdata[:, 2]))
+        
+    else:
+        posdata = getarchivecoords(sc, begin= time[0]-datetime.timedelta(minutes = 10), end = time[-1], arrays =  '10T', datafile = datafile)
+    
+        heeq_bx, heeq_by, heeq_bz = hc.convert_RTN_to_HEEQ_mag(posdata.x,posdata.y, posdata.z, bx, by, bz)
+        b_HEEQ = np.column_stack((heeq_bx, heeq_by, heeq_bz))
+        
+        dt = time
+        b_RTN = np.column_stack((bx, by, bz))
+        pos = np.column_stack((posdata.x, posdata.y, posdata.z))
                           
     return b_HEEQ, b_RTN, dt, pos
 
@@ -952,7 +1026,7 @@ def get_posdata(mag_coord_system, sc, date, datafile = None, threed = False):
             now_time_str = now_time.strftime("%Y-%m-%d %H:%M:%S")
             
         except:
-            kernelss = astrospice.registry.get_kernels(kernel, 'predict')[0]
+            #kernelss = astrospice.registry.get_kernels(kernel, 'predict')[0]
             coords_past = astrospice.generate_coords(generator, times_past).transform_to(frame)
             coords_future = astrospice.generate_coords(generator, times_future).transform_to(frame)
             coords_now = astrospice.generate_coords(generator, now_time).transform_to(frame)
@@ -1241,7 +1315,6 @@ def load_cat_id(idd):
     '''
     Returns from helioforecast.space the event with a given ID.
     '''
-    
     url='https://helioforecast.space/static/sync/icmecat/HELIO4CAST_ICMECAT_v21.csv'
     icmecat=pd.read_csv(url)
     starttime = icmecat.loc[:,'icme_start_time']
@@ -1256,8 +1329,6 @@ def load_cat_id(idd):
     end = pd.to_datetime(endtime, format=dateFormat)
     
     i = np.where(idds == idd)[0]
-    
-    
     return Event(mobegin[i], end[i], idds[i], sc[i])
         
 def load_cat(date):
@@ -1471,6 +1542,9 @@ def load_fit(name, graph):
     num_rows = min(len(resepses), len(resdf))
     resdf.insert(0, 'RMSE Ɛ', resepses[:num_rows])
     
+    resdf['Launch Time'] = t0.strftime("%Y-%m-%d %H:%M")
+
+    
     # Calculate statistics
     mean_values = resdf.mean()
     std_values = resdf.std()
@@ -1488,6 +1562,8 @@ def load_fit(name, graph):
          kurtosis_values],
         columns=resdf.columns
     )
+    
+    mean_row['Launch Time'] = t0.strftime("%Y-%m-%d %H:%M")
 
     
     # Add the index column
@@ -1576,7 +1652,9 @@ def get_iparams(row):
         }
     }
     
-    return model_kwargs
+    row_launch = datetime.datetime.strptime(row['Launch Time'], "%Y-%m-%d %H:%M")
+    
+    return model_kwargs, row_launch
 
 
 

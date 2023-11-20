@@ -312,7 +312,6 @@ sidebar = dmc.Navbar(
                     
                 )),
                 
-                
                 dmc.Divider(
                     label="Model Parameters",
                     style={"marginBottom": 20, "marginTop": 20, "marginLeft": 20, "marginRight": 20},
@@ -653,9 +652,9 @@ def plot_insitufig(_, graph, plotoptions, tabledata, infodata, selectedrows, ncl
         t_launch = datetime.datetime.strptime(launchlabel, datetime_format)
         
         for row in selectedrows:
-            iparams = get_iparams(row)
+            iparams, rowlaunch = get_iparams(row)
             rowind = row['Index']
-            model_obj = coreweb.ToroidalModel(t_launch, **iparams) # model gets initialized
+            model_obj = coreweb.ToroidalModel(rowlaunch, **iparams) # model gets initialized
             model_obj.generator()
             
             if sc == "SYN":
@@ -809,10 +808,12 @@ def plot_insitufig(_, graph, plotoptions, tabledata, infodata, selectedrows, ncl
     ],
     
 )
-def generate_graphstore(infodata, reference_frame, posstore):
+def generate_graphstore(infodata, reference_frame, posstore, long_per_hour = None):
+    
+    #print(infodata)
     newhash = infodata['id']
     
-    changed_id = [p['prop_id'] for p in dash.callback_context.triggered][0]
+    #changed_id = [p['prop_id'] for p in dash.callback_context.triggered][0]
     
     if (newhash == "No event selected") or (newhash == None):
         return {}, {}, " "
@@ -853,8 +854,8 @@ def generate_graphstore(infodata, reference_frame, posstore):
                 pass
 
     if sc == "SYN":
-        insitubegin = begin - datetime.timedelta(hours=24)
-        insituend = end + datetime.timedelta(hours=24)
+        insitubegin = begin #- datetime.timedelta(hours=24)
+        insituend = end + datetime.timedelta(hours=100)
     else:
         
         insitubegin = begin - datetime.timedelta(hours=24)
@@ -865,7 +866,7 @@ def generate_graphstore(infodata, reference_frame, posstore):
     data_file_path = os.path.join(os.path.dirname(__file__), "data", f"{newhash[0]}.pkl")
 
     
-    if os.path.exists(data_file_path) and not (sc == "NOAA_RTSW" or sc == "STEREO-A_beacon" or infodata['loaded'] is not False):
+    if os.path.exists(data_file_path) and not (sc == "NOAA_RTSW" or sc == "STEREO-A_beacon"): #or infodata['loaded'] is not False):
         # Load data from the file
 
         with open(data_file_path, 'rb') as file:
@@ -975,42 +976,59 @@ def generate_graphstore(infodata, reference_frame, posstore):
         # Extract the date using regular expression
         date_pattern = r'(\d{8})'
 
+        flagster = False
+
         match = re.search(date_pattern, newhash[0])
         if match:
             extracted_date = match.group(1)
             extracted_datetime = datetime.datetime.strptime(extracted_date, '%Y%m%d')
         else:
-            match = re.search(date_pattern, newhash)
-            extracted_date = match.group(1)
-            extracted_datetime = datetime.datetime.strptime(extracted_date, '%Y%m%d')
-
-
-
-        try:
-            bodydata = load_body_data("HEEQ", extracted_datetime, datafile=datafile)
-            print('Body data obtained successfully')
-        except:
-            bodydata = None
-            print('Failed to load body data')
-
-
-        scs = ["SOLO", "PSP", "BEPI", "STEREO-A"]
-
-        for scc in scs:
-
             try:
-                traces, types = get_posdata('HEEQ', scc, extracted_datetime, datafile=datafile)
-                data, types = load_pos_data('HEEQ', scc, extracted_datetime, datafile=datafile)
-                # Update posstore using a dictionary
-                traj_data = {scc: {'traces': traces, 'data': data}}
-                print("Successfully loaded data for " + scc + " from " + types)
-                if posstore == None:
-                    posstore = traj_data
-                else:
-                    posstore.update(traj_data)
+                match = re.search(date_pattern, newhash)
+                extracted_date = match.group(1)
+                extracted_datetime = datetime.datetime.strptime(extracted_date, '%Y%m%d')
+            except:
+                extracted_datetime = datetime.datetime(2012,12,21,6)
+                flagster = True
 
-            except Exception as e:
-                print("Failed to load data for ", scc, ":", e)
+
+        if flagster == False:
+            try:
+                bodydata = load_body_data("HEEQ", extracted_datetime, datafile=datafile)
+                print('Body data obtained successfully')
+            except:
+                bodydata = None
+                print('Failed to load body data')
+
+
+            scs = ["SOLO", "PSP", "BEPI", "STEREO-A"]
+            failcount = 0
+
+            for scc in scs:
+                if failcount < 5:
+                    
+                    try:
+
+                        traces, types = get_posdata('HEEQ', scc, extracted_datetime, datafile=datafile)
+                        data, types = load_pos_data('HEEQ', scc, extracted_datetime, datafile=datafile)
+                        # Update posstore using a dictionary
+                        traj_data = {scc: {'traces': traces, 'data': data}}
+                        print("Successfully loaded data for " + scc + " from " + types)
+                        if posstore == None:
+                            posstore = traj_data
+                        else:
+                            posstore.update(traj_data)
+
+                    except Exception as e:
+                        failcount +=1
+                        print("Failed to load data for ", scc, ":", e)
+                else:
+                    print('Quit data retrieval to avoid overload')
+
+        else:
+            posstore = {}    
+            bodydata = None
+        
 
 
         # Save obtained data to the file
@@ -1023,8 +1041,10 @@ def generate_graphstore(infodata, reference_frame, posstore):
             'pos_data': pos_data,
             'posstore': posstore,
         }
+        
+        
+        
         if not (sc == "NOAA_RTSW" or sc == "STEREO-A_beacon"):
-            
             with open(data_file_path, 'wb') as file:
                 pickle.dump(saved_data, file)
         else:
@@ -1037,9 +1057,11 @@ def generate_graphstore(infodata, reference_frame, posstore):
 
             with open(updated_file_path, 'wb') as file:
                 pickle.dump(saved_data, file)
+            
+            
     try:
         view_legend_insitu = True
-        fig = plot_insitu(names, t_data, b_data, view_legend_insitu) 
+        fig = plot_insitu(names, t_data, b_data, view_legend_insitu)
     except Exception as e:
         print("An error occurred:", e)
         return {}, {},fail_icon
@@ -1197,6 +1219,7 @@ def main_fit(set_progress, n_clicks, graphstore, *fittingstate_values):
                     kernel_mode,
                 )
             
+            
             print("starting simulations")
 
             try:
@@ -1207,6 +1230,7 @@ def main_fit(set_progress, n_clicks, graphstore, *fittingstate_values):
 
             if multiprocessing == True:
                 print("multiprocessing is used")
+                
                 _results = mpool.starmap(abc_smc_worker, [(*worker_args, _random_seed + i) for i in range(njobs)]) # starmap returns a function for all given arguments
             else:
                 print("multiprocessing is not used")

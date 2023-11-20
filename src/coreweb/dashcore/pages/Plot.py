@@ -313,6 +313,7 @@ def update_spacecraft_options(posstore):
 )
 def update_posfig(posstore, rinput, lonput, latput, nclicks, togglerange, timeslider, dim, graph, infodata, launchlabel,plotoptions, spacecraftoptions, bodyoptions, refframe, *modelstatevars):
     
+    
     if launchlabel == "Launch Time:":
         raise PreventUpdate
 
@@ -406,7 +407,7 @@ def update_posfig(posstore, rinput, lonput, latput, nclicks, togglerange, timesl
                     # Create an array with NaN values
                     pos_array = np.empty((desired_length, 3))
 
-                    pos_array[:, 0], pos_array[:, 1], pos_array[:, 2] = sphere2cart(rinput, np.deg2rad(-latput+90), np.deg2rad(lonput))  # Assign a different value (e.g., 0.9) to the third vector
+                    pos_array[:, 0], pos_array[:, 1], pos_array[:, 2] = sphere2cart(rinput, np.deg2rad(-latput+90), np.deg2rad(lonput))  
                     
                     #print(pos_array)
 

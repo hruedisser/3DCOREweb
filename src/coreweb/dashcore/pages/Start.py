@@ -16,6 +16,8 @@ import cdflib
 
 from PIL import Image
 
+import pickle as p
+
 import json
 
 from PIL import Image
@@ -512,7 +514,12 @@ def update_submit_button_disabled(event_value):
     prevent_initial_call=True
 )
 def update_alert_for_init(cat_clicks, list_of_contents, list_of_names, list_of_dates, manual_clicks, cat_event,  manual_date, manual_sc, times):
-    changed_id = [p['prop_id'] for p in dash.callback_context.triggered][0]
+    try:
+        changed_id = [p['prop_id'] for p in dash.callback_context.triggered][0]
+    except:
+        changed_id = ['submitcatalog']
+
+    print(changed_id)
     
     event_info = None
     rinput = no_update
@@ -533,6 +540,7 @@ def update_alert_for_init(cat_clicks, list_of_contents, list_of_names, list_of_d
                                           )
         
         else:
+            print(cat_event)
             event_obj = load_cat_id(cat_event)
             event = f"{cat_event}"
             event_info = create_event_info(event_obj.begin,
@@ -546,6 +554,7 @@ def update_alert_for_init(cat_clicks, list_of_contents, list_of_names, list_of_d
         if list_of_contents is not None:
             if len(list_of_contents) > 1:
                 print('multiple files detected')
+                
             if 'txt' in list_of_names[0]:
                 content_type, content_string = list_of_contents[0].split(',')
                 decoded = base64.b64decode(content_string)
@@ -561,7 +570,8 @@ def update_alert_for_init(cat_clicks, list_of_contents, list_of_names, list_of_d
                 launchslider = data_dict['launchvalue']
                 refframe = data_dict['refframe']
                 modelstatevars = data_dict['modelstatevars']
-            if 'cdf' in list_of_names[0]:
+                
+            elif 'cdf' in list_of_names[0]:
                 firstdate, sc, filename = process_cdf(list_of_names, list_of_contents)
                 dateFormat = "%Y%m%d"
                 input_datetime = datetime.datetime.strptime(firstdate, dateFormat)
@@ -575,6 +585,28 @@ def update_alert_for_init(cat_clicks, list_of_contents, list_of_names, list_of_d
                                                [f"ICME_{sc}_CUSTOM_{firstdate}"],
                                                loaded = filename,
                                               )
+            elif 'sav' in list_of_names[0]:
+                
+                
+                eventbegin, eventend, sc, filename, direction, distance = process_sav(list_of_names[0], list_of_contents[0])
+                
+                
+                endtime_formatted = eventend
+                input_datetime_formatted = eventbegin.strftime("%Y-%m-%dT%H:%M:%S%z")
+                
+                dateFormat = "%Y%m%d"
+                firstdate = datetime.datetime.strftime(eventbegin, dateFormat)
+                
+                event_info = create_event_info([input_datetime_formatted],
+                                               [input_datetime_formatted],
+                                               [endtime_formatted],
+                                               [sc],
+                                               [f"ICME_{sc}_{filename[:-7]}_{firstdate}"],
+                                               loaded = filename,
+                                              )
+                rinput = distance
+                lonput = direction
+                latput = 0
 
             else:
                 print('datatype not supported, upload cdf or txt file')
@@ -613,6 +645,9 @@ def update_alert_for_init(cat_clicks, list_of_contents, list_of_names, list_of_d
                                            [sc],
                                            [f"ICME_{sc}_CUSTOM_{manual_date.replace('-', '')}"]
                                           )
+            
+    else: 
+        raise PreventUpdate
     
     return rinput, lonput, latput, event_info, launchslider, refframe, *modelstatevars
     
