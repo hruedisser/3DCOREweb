@@ -44,6 +44,7 @@ import re
 from sunpy.time import parse_time
 from scipy.io import readsav
 
+import matplotlib.pyplot as plt
 
 
 ############################################################
@@ -344,7 +345,7 @@ def plot_body3d(data_list, nowdate, color, sc):
 
 
 
-def process_coordinates(data_list, date, nowdate, color, sc):
+def process_coordinates(data_list, date, nowdate, color, sc, legendgroup = None):
     '''
     plot spacecraft 3d position from previously loaded data
     '''
@@ -384,35 +385,68 @@ def process_coordinates(data_list, date, nowdate, color, sc):
     times_future_str = [time.strftime("%Y-%m-%d %H:%M:%S") for time in times_future_list]
     now_time_str = [time.strftime("%Y-%m-%d %H:%M:%S") for time in times_now_list]
     
-    traces = [
-            go.Scatter3d(x=x_past, y=y_past, z=z_past,
-                         mode='lines', 
-                         line=dict(color=color), 
-                         name=sc + '_past_100', 
-                         customdata=np.vstack((r_past, lat_past, lon_past)).T,  # Custom data for r, lat, lon values
-                         showlegend=False, 
-                         hovertemplate="%{text}<br><b>(x, y, z):</b> (%{x:.2f} AU, %{y:.2f} AU, %{z:.2f} AU)<br><b>(r, lon, lat):</b> (%{customdata[0]:.2f} AU, %{customdata[2]:.2f}°, %{customdata[1]:.2f}°)<extra>" 
-                         + sc + "</extra>", text=times_past_str),
-            go.Scatter3d(x=x_future, y=y_future, z=z_future,
-                         mode='lines', 
-                         line=dict(color=color, dash='dash'), 
-                         name=sc + '_future_100', 
-                         customdata=np.vstack((r_future, lat_future, lon_future)).T,  # Custom data for r, lat, lon values
-                         showlegend=False, 
-                         hovertemplate="%{text}<br><b>(x, y, z):</b> (%{x:.2f} AU, %{y:.2f} AU, %{z:.2f} AU)<br><b>(r, lon, lat):</b> (%{customdata[0]:.2f} AU, %{customdata[2]:.2f}°, %{customdata[1]:.2f}°)<extra>" 
-                         + sc + "</extra>", text=times_future_str),
-            go.Scatter3d(x=x_now, y=y_now, z=z_now,
-                         mode='markers', 
-                         marker=dict(size=3, 
-                                     symbol='square',
-                                     color=color),
-                         name=sc, 
-                         customdata=np.vstack((r_now, lat_now, lon_now)).T,  # Custom data for r, lat, lon values
-                         showlegend=True, 
-                         hovertemplate="%{text}<br><b>(x, y, z):</b> (%{x:.2f} AU, %{y:.2f} AU, %{z:.2f} AU)<br><b>(r, lon, lat):</b> (%{customdata[0]:.2f} AU, %{customdata[2]:.2f}°, %{customdata[1]:.2f}°)<extra>" 
-                         + sc + "</extra>", text=now_time_str),
-            
-        ]
+    if legendgroup == None:
+        traces = [
+                go.Scatter3d(x=x_past, y=y_past, z=z_past,
+                            mode='lines', 
+                            line=dict(color=color), 
+                            name=sc + '_past_100', 
+                            customdata=np.vstack((r_past, lat_past, lon_past)).T,  # Custom data for r, lat, lon values
+                            showlegend=False, 
+                            hovertemplate="%{text}<br><b>(x, y, z):</b> (%{x:.2f} AU, %{y:.2f} AU, %{z:.2f} AU)<br><b>(r, lon, lat):</b> (%{customdata[0]:.2f} AU, %{customdata[2]:.2f}°, %{customdata[1]:.2f}°)<extra>" 
+                            + sc + "</extra>", text=times_past_str),
+                go.Scatter3d(x=x_future, y=y_future, z=z_future,
+                            mode='lines', 
+                            line=dict(color=color, dash='dash'), 
+                            name=sc + '_future_100', 
+                            customdata=np.vstack((r_future, lat_future, lon_future)).T,  # Custom data for r, lat, lon values
+                            showlegend=False, 
+                            hovertemplate="%{text}<br><b>(x, y, z):</b> (%{x:.2f} AU, %{y:.2f} AU, %{z:.2f} AU)<br><b>(r, lon, lat):</b> (%{customdata[0]:.2f} AU, %{customdata[2]:.2f}°, %{customdata[1]:.2f}°)<extra>" 
+                            + sc + "</extra>", text=times_future_str),
+                go.Scatter3d(x=x_now, y=y_now, z=z_now,
+                            mode='markers', 
+                            marker=dict(size=3, 
+                                        symbol='square',
+                                        color=color),
+                            name=sc, 
+                            customdata=np.vstack((r_now, lat_now, lon_now)).T,  # Custom data for r, lat, lon values
+                            showlegend=True, 
+                            hovertemplate="%{text}<br><b>(x, y, z):</b> (%{x:.2f} AU, %{y:.2f} AU, %{z:.2f} AU)<br><b>(r, lon, lat):</b> (%{customdata[0]:.2f} AU, %{customdata[2]:.2f}°, %{customdata[1]:.2f}°)<extra>" 
+                            + sc + "</extra>", text=now_time_str),
+                
+            ]
+        
+    else:
+        traces = [
+                go.Scatter3d(x=x_past, y=y_past, z=z_past,
+                            mode='lines', 
+                            line=dict(color=color), 
+                            name=sc + '_past_100', 
+                            customdata=np.vstack((r_past, lat_past, lon_past)).T,  # Custom data for r, lat, lon values
+                            showlegend=False, 
+                            hovertemplate="%{text}<br><b>(x, y, z):</b> (%{x:.2f} AU, %{y:.2f} AU, %{z:.2f} AU)<br><b>(r, lon, lat):</b> (%{customdata[0]:.2f} AU, %{customdata[2]:.2f}°, %{customdata[1]:.2f}°)<extra>" 
+                            + sc + "</extra>", text=times_past_str),
+                go.Scatter3d(x=x_future, y=y_future, z=z_future,
+                            mode='lines', 
+                            line=dict(color=color, dash='dash'), 
+                            name=sc + '_future_100', 
+                            customdata=np.vstack((r_future, lat_future, lon_future)).T,  # Custom data for r, lat, lon values
+                            showlegend=False, 
+                            hovertemplate="%{text}<br><b>(x, y, z):</b> (%{x:.2f} AU, %{y:.2f} AU, %{z:.2f} AU)<br><b>(r, lon, lat):</b> (%{customdata[0]:.2f} AU, %{customdata[2]:.2f}°, %{customdata[1]:.2f}°)<extra>" 
+                            + sc + "</extra>", text=times_future_str),
+                go.Scatter3d(x=x_now, y=y_now, z=z_now,
+                            mode='markers', 
+                            marker=dict(size=3, 
+                                        symbol='square',
+                                        color=color),
+                            name=sc, 
+                            customdata=np.vstack((r_now, lat_now, lon_now)).T,  # Custom data for r, lat, lon values
+                            showlegend=True, 
+                            legendgroup = legendgroup,
+                            hovertemplate="%{text}<br><b>(x, y, z):</b> (%{x:.2f} AU, %{y:.2f} AU, %{z:.2f} AU)<br><b>(r, lon, lat):</b> (%{customdata[0]:.2f} AU, %{customdata[2]:.2f}°, %{customdata[1]:.2f}°)<extra>" 
+                            + sc + "</extra>", text=now_time_str),
+                
+            ]
 
     return traces
 
@@ -620,15 +654,15 @@ def filter_and_sort_files(file_list, content_list):
     return filenames, contents, min_date, max_spacecraft
 
 
-@functools.lru_cache()    
+#@functools.lru_cache()    
 def get_rt_data(sc, insitubegin, insituend):
     '''
     used to load insitudata for the graphstore from helioforecast
     '''
     
-    if (sc == "NOAA_RTSW"):
+    if sc == "NOAA_RTSW":
         url = 'https://helioforecast.space/static/sync/insitu_python/noaa_rtsw_last_35files_now.p'
-    elif (sc == "STEREO-A_beacon"):
+    elif sc == "STEREO-A_beacon":
         url = 'https://helioforecast.space/static/sync/insitu_python/stereoa_beacon_rtn_last_35days_now.p'
         
     file = urllib.request.urlopen(url)    
@@ -645,9 +679,25 @@ def get_rt_data(sc, insitubegin, insituend):
     
     insitubegin = insitubegin.replace(tzinfo=None)
     insituend = insituend.replace(tzinfo=None)
+    
+    # Ensure time ends with insituend
+    while time[-1] < insituend:
+        #print(time[-1])
+        #print(insituend)
 
+        time = np.append(time, time[-1]+ (time[-1]-time[-2]))
+        bx = np.append(bx, np.nan)
+        by = np.append(by, np.nan)
+        bz = np.append(bz, np.nan)
+        x = np.append(x, 1.)
+        y = np.append(y, 0.)
+        z = np.append(z, 0.)
+    
     # Find indices within the specified time range
     mask = (time >= insitubegin) & (time <= insituend)
+
+    #print(x)
+    #print(time)
     
     heeq_bx, heeq_by, heeq_bz = hc.convert_RTN_to_HEEQ_mag(x[mask], y[mask], z[mask], bx[mask], by[mask], bz[mask])
     b_HEEQ = np.column_stack((heeq_bx, heeq_by, heeq_bz))
@@ -1749,7 +1799,7 @@ def generate_ensemble(path: str, dt: datetime.datetime, posdata, reference_frame
     
     # simulate flux ropes using iparams from loaded fitter
     ensemble = np.squeeze(np.array(ftobj.model_obj.simulator(dt, posdata)[0]))
-        
+    #print(dt)
     # how much to keep of the generated ensemble
     if max_index is None:
         max_index = ensemble.shape[1]
@@ -1758,14 +1808,20 @@ def generate_ensemble(path: str, dt: datetime.datetime, posdata, reference_frame
     
     #print(ensemble)
     
+    #ensemble[np.where(ensemble == 0)] = np.nan
 
     # transform frame
     if reference_frame != reference_frame_to:
-        x,y,z = hc.separate_components(posdata)
+        x,y,z = hc.separate_components(posdata)        
         for k in range(0, ensemble.shape[1]):
+            #if np.sum(~np.isnan(ensemble[:, k, :])) > 5000:
+                #print(str(k)+': ')
+                #print(np.sum(~np.isnan(ensemble[:, k, :])))
+                #print(ensemble[:, k, :])
             sys.stdout.write(f"\r{k+1}/{ensemble.shape[1]}")
             sys.stdout.flush()
             bx,by,bz = hc.separate_components(ensemble[:, k, :])
+
             rtn_bx, rtn_by, rtn_bz = hc.convert_HEEQ_to_RTN_mag(x,y,z, bx,by,bz, printer = False)
             ensemble[:, k, :] = hc.combine_components(rtn_bx, rtn_by, rtn_bz)
         # Print a new line after progress is complete

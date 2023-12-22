@@ -35,9 +35,36 @@ import os
 
 
 
-def get_eventinfo(cat_event, purelysyn = False):
+def get_eventinfo(cat_event, purelysyn = False, custom = False):
 
-    if purelysyn == True:
+
+    if custom == True:
+
+        # Extract the date using regular expression
+        date_pattern = r'(\d{8})'
+
+        match = re.search(date_pattern, cat_event[0])
+        if match:
+            extracted_date = match.group(1)
+            extracted_datetime = datetime.datetime.strptime(extracted_date, '%Y%m%d')
+        else:
+            match = re.search(date_pattern, cat_event)
+            extracted_date = match.group(1)
+            extracted_datetime = datetime.datetime.strptime(extracted_date, '%Y%m%d')
+
+        input_datetime_formatted = extracted_datetime.strftime('%Y-%m-%dT%H:%M:%S')
+        endtime_formatted = extracted_datetime.strftime('%Y-%m-%dT%H:%M:%S')
+
+        eventinfo = {"processday": [input_datetime_formatted],
+            "begin": [input_datetime_formatted],
+            "end": [endtime_formatted],
+            "sc": ["NOAA_RTSW"],
+            "id": [cat_event],
+            "loaded": False,
+            "changed": True
+           }
+
+    elif purelysyn == True:
 
         alldate = datetime.datetime(2012,12,21,6)
 
@@ -1427,7 +1454,7 @@ def offwebfit(t_launch, eventinfo, graphstore, multiprocessing, t_s, t_e, t_fit,
 
 
 
-def create_movie(degmove, deltatime, longmove_array, plottheme, graphstore, reference_frame, rinput, lonput, latput, currenttimeslider, eventinfo, launchlabel, plot_options, spacecraftoptions, bodyoptions,  insitu, positions, view_legend_insitu, camera, posstore, *modelstatevars):
+def create_movie(degmove, deltatime, longmove_array, results, plottheme, graphstore, reference_frame, rinput, lonput, latput, currenttimeslider, eventinfo, launchlabel, plot_options, spacecraftoptions, bodyoptions,  insitu, positions, view_legend_insitu, camera, posstore, *modelstatevars):
 
     ks = deltatime*2 
 
@@ -1456,9 +1483,31 @@ def create_movie(degmove, deltatime, longmove_array, plottheme, graphstore, refe
 
         timeslide = i*0.5
 
-        fig = check_animation(longmove_array, plottheme, graphstore, reference_frame, rinput, lonput, latput, timeslide, eventinfo, launchlabel, plot_options, spacecraftoptions, bodyoptions,  insitu, positions, view_legend_insitu, currentcam.copy(), posstore, *modelstatevars)
+        fig = check_animation(longmove_array, results, plottheme, graphstore, reference_frame, rinput, lonput, latput, timeslide, eventinfo, launchlabel, plot_options, spacecraftoptions, bodyoptions,  insitu, positions, view_legend_insitu, currentcam.copy(), posstore, *modelstatevars)
         
         fig.write_image(path + "fig_" + str(i) + ".png")
 
 
     return
+
+
+
+def extract_row(row):
+    
+    params = [
+        row['Longitude'],
+        row['Latitude'],
+        row['Inclination'],
+        row['Diameter 1 AU'],
+        row['Aspect Ratio'],
+        row['Launch Radius'],
+        row['Launch Velocity'],
+        row['Expansion Rate'],
+        row['Background Drag'],
+        row['Background Velocity'],
+        row['T_Factor'],
+        row['Magnetic Decay Rate'],
+        row['Magnetic Field Strength 1 AU'],        
+    ]
+
+    return params

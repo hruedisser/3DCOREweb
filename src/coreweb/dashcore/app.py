@@ -925,8 +925,13 @@ def generate_graphstore(infodata, reference_frame, posstore, long_per_hour = Non
                         pos_data[:] = 0.5
 
                     elif (sc == "NOAA_RTSW") or (sc == "STEREO-A_beacon"):
-                        print('Loading realtime data...')
+                       
+                        insitubegin = begin - datetime.timedelta(hours=72*2)
+                        
+                        insituend = end + datetime.timedelta(hours=72*2)
+                        print('Loading realtime data between ' + str(insitubegin) + ' and ' + str(insituend))
                         b_data_HEEQ, b_data_RTN, t_data, pos_data = get_rt_data(sc, insitubegin, insituend)
+                        #print(t_data)
                         if len(b_data_HEEQ) == 0:
                             raise Exception("Data not contained in Archive")
                         print('Realtime insitu data obtained successfully')

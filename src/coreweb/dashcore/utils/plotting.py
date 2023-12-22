@@ -76,7 +76,26 @@ def plot_insitu(names, t_data, b_data,view_legend_insitu):
     
     return fig
 
+import math
 
+def angular_speed_in_degrees_per_hour(semi_major_axis_AU):
+    # Constants
+    G = 6.674 * 10**(-11)  # Gravitational constant in m^3 kg^(-1) s^(-2)
+    M = 1.989 * 10**(30)   # Mass of the Sun in kg
+
+    # Convert semi-major axis from AU to meters
+    semi_major_axis_meters = semi_major_axis_AU * 1.496 * 10**(11)
+
+    # Calculate orbital period in seconds
+    orbital_period_seconds = math.sqrt((4 * math.pi**2 * semi_major_axis_meters**3) / (G * M))
+
+    # Calculate angular speed in radians per second
+    angular_speed_radians_per_second = 2 * math.pi / orbital_period_seconds
+
+    # Convert angular speed to degrees per hour
+    angular_speed_degrees_per_hour = angular_speed_radians_per_second * (360 / (2 * math.pi)) * 3600
+
+    return angular_speed_degrees_per_hour
 
 def get_longmove_array(longmove, rinput, lonput, latput, graph):
     
@@ -85,8 +104,16 @@ def get_longmove_array(longmove, rinput, lonput, latput, graph):
 
     if longmove == 0:
         pos_array[:, 0], pos_array[:, 1], pos_array[:, 2] = sphere2cart(float(rinput), np.deg2rad(-float(latput)+90), np.deg2rad(float(lonput)))
+
     else:
-        print('spacecraft position changes by ' + str(longmove) + '° per timestep')
+        if longmove == True:
+            anglestep = angular_speed_in_degrees_per_hour(rinput)
+            longmove = anglestep/60
+            print('spacecraft position changes by ' + str(anglestep) + '° per hour')
+
+
+        else:
+            print('spacecraft position changes by ' + str(longmove) + '° per timestep')
         pos_array_n = np.empty((desired_length, 3))
         pos_array_n[:, 0], pos_array_n[:, 1], pos_array_n[0, 2] = rinput, latput, lonput
         pos_array[0, 0], pos_array[0, 1], pos_array[0, 2] = sphere2cart(float(pos_array_n[0, 0]), np.deg2rad(-float(pos_array_n[0, 1])+90), np.deg2rad(float(pos_array_n[0, 2])))
@@ -100,7 +127,7 @@ def get_longmove_array(longmove, rinput, lonput, latput, graph):
 
 
 
-def check_animation(pos_array, plottheme, graph, reference_frame, rinput, lonput, latput, timeslider, infodata, launchlabel, plotoptions, spacecraftoptions, bodyoptions, insitu, positions, view_legend_insitu, camera, posstore, *modelstatevars):
+def check_animation(pos_array, results, plottheme, graph, reference_frame, rinput, lonput, latput, timeslider, infodata, launchlabel, plotoptions, spacecraftoptions, bodyoptions, insitu, positions, view_legend_insitu, camera, posstore, *modelstatevars):
     template = "none"
     bg_color = 'rgba(0, 0,0, 0)'
     line_color = 'white'
@@ -150,7 +177,12 @@ def check_animation(pos_array, plottheme, graph, reference_frame, rinput, lonput
 
     else:
         datetime_format = "Launch Time: %Y-%m-%d %H:%M"
-        t_launch = datetime.datetime.strptime(launchlabel, datetime_format)
+        #(launchlabel)
+        try:
+            t_launch = datetime.datetime.strptime(launchlabel, datetime_format)
+        except:
+            t_launch = datetime.datetime.strptime(launchlabel[0], datetime_format)
+
         roundedlaunch = round_to_hour_or_half(t_launch) 
         
 
@@ -360,7 +392,7 @@ def check_animation(pos_array, plottheme, graph, reference_frame, rinput, lonput
                             mode='lines', 
                             name="SYN",
                             #customdata=np.vstack((rinput, latput, lonput)).T,
-                            #showlegend=True,
+                            showlegend=False,
                             #legendgroup = '1',
                             #hovertemplate="<b>(x, y, z):</b> (%{x:.2f} AU, %{y:.2f} AU, %{z:.2f} AU)<br><b>(r, lon, lat):</b> (%{customdata[0]:.2f} AU, %{customdata[2]:.2f}°, %{customdata[1]:.2f}°)<extra>" 
                          #+ scopt + "</extra>"
@@ -369,8 +401,7 @@ def check_animation(pos_array, plottheme, graph, reference_frame, rinput, lonput
                      #   pass
 
                 else:                    
-                    traces = process_coordinates(posstore[scopt]['data']['data'], roundedlaunch, roundedlaunch + datetime.timedelta(hours=timeslider), posstore[scopt]['data']['color'], scopt)
-
+                    traces = process_coordinates(posstore[scopt]['data']['data'], roundedlaunch, roundedlaunch + datetime.timedelta(hours=timeslider), posstore[scopt]['data']['color'], scopt, legendgroup='1')
                     if "Trajectories" in plotoptions:
                         fig.add_trace(traces[0], row=posrow, col=1)
                         fig.add_trace(traces[1], row=posrow, col=1)
@@ -555,6 +586,58 @@ def check_animation(pos_array, plottheme, graph, reference_frame, rinput, lonput
     
     ############## INSITU THING ###################
     
+    if results is not None:
+        
+        
+    
+        if reference_frame == 'HEEQ':
+            ed = results['ensemble_HEEQ']
+        else:
+            ed = results['ensemble_RTN']
+
+        #print(len(ed[0][3][0]))
+        #print(len(graph['t_data']))
+        
+        shadow_data = [
+            (ed[0][3][0], None, 'black'),
+            (ed[0][3][1], 'rgba(0, 0, 0, 0.15)', 'black'),
+            (ed[0][2][0][:, 0], None, 'red'),
+            (ed[0][2][1][:, 0], 'rgba(255, 0, 0, 0.15)', 'red'),
+            (ed[0][2][0][:, 1], None, 'green'),
+            (ed[0][2][1][:, 1], 'rgba(0, 255, 0, 0.15)', 'green'),
+            (ed[0][2][0][:, 2], None, 'blue'),
+            (ed[0][2][1][:, 2], 'rgba(0, 0, 255, 0.15)', 'blue')
+        ]            
+
+        for i in range(0, len(shadow_data), 2):
+            y1, fill_color, line_color = shadow_data[i]
+            y2, _, _ = shadow_data[i + 1]
+
+            fig.add_trace(
+                go.Scatter(
+                    x=t_data,
+                    y=y1,
+                    fill=None,
+                    mode='lines',
+                    line_color=line_color,
+                    line_width=0,
+                    showlegend=False
+                )
+            )
+
+            fig.add_trace(
+                go.Scatter(
+                    x=t_data,
+                    y=y2,
+                    fill='tonexty',
+                    mode='lines',
+                    line_color=line_color,
+                    line_width=0,
+                    fillcolor=fill_color,
+                    showlegend=False
+                )
+            )
+
     if insitu:
         row = ndims
 
@@ -635,6 +718,8 @@ def check_animation(pos_array, plottheme, graph, reference_frame, rinput, lonput
             
             
         if "Synthetic Event" in plotoptions:
+
+            
             # Create ndarray with dtype=object to handle ragged nested sequences
             if sc == "SYN":
                 try:
@@ -647,7 +732,7 @@ def check_animation(pos_array, plottheme, graph, reference_frame, rinput, lonput
                     outa = np.array(model_obj.simulator(graph['t_data'], graph['pos_data']), dtype=object)
             else:
                 outa = np.array(model_obj.simulator(graph['t_data'], graph['pos_data']), dtype=object)
-                
+                #print(graph['t_data'])
                 
                 #print(graph['pos_data'])
             
@@ -660,6 +745,7 @@ def check_animation(pos_array, plottheme, graph, reference_frame, rinput, lonput
             else:
                 if reference_frame == "RTN":
                     x,y,z = hc.separate_components(graph['pos_data'])
+                    #print(x,y,z)
                     rtn_bx, rtn_by, rtn_bz = hc.convert_HEEQ_to_RTN_mag(x,y,z, outa[:, 0],outa[:, 1],outa[:, 2])
                     outa[:, 0],outa[:, 1],outa[:, 2] = rtn_bx, rtn_by, rtn_bz
                         
@@ -764,7 +850,7 @@ def check_animation(pos_array, plottheme, graph, reference_frame, rinput, lonput
     if insitu:
         height = height + 350
     
-    gapwidth = 550 + 25 * len(bodyoptions) + 25 * len(spacecraftoptions)
+    gapwidth = 550 + 5 * len(bodyoptions) + 5 * len(spacecraftoptions)
     
     if camera != 'auto':
         
@@ -792,8 +878,12 @@ def check_fittingpoints(graph, reference_frame, infodata, view_legend_insitu, sh
     
     
     sc = infodata['sc'][0]
-    begin = infodata['begin'][0]
-    end = infodata['end'][0]
+    if t_s == None:
+        begin = infodata['begin'][0]
+        end = infodata['end'][0]
+    else:
+        begin = t_s
+        end = t_e
     
     template = "none"
     bg_color = 'rgba(0, 0,0, 0)'
@@ -812,7 +902,7 @@ def check_fittingpoints(graph, reference_frame, infodata, view_legend_insitu, sh
 
     try:
         begin = datetime.datetime.strptime(begin, dateFormat2)
-    except ValueError:
+    except:
         try:
             begin = datetime.datetime.strptime(begin, dateFormat)
         except:
@@ -823,7 +913,7 @@ def check_fittingpoints(graph, reference_frame, infodata, view_legend_insitu, sh
 
     try:
         end = datetime.datetime.strptime(end, dateFormat2)
-    except ValueError:
+    except:
         try:
             end = datetime.datetime.strptime(end, dateFormat)
         except:
@@ -858,7 +948,7 @@ def check_fittingpoints(graph, reference_frame, infodata, view_legend_insitu, sh
     new_end = end + datetime.timedelta(hours=12)
 
     # Filter the data to the new time range
-    mask = (t_data >= new_begin) & (t_data <= new_end)
+    mask = (t_data >= new_begin.replace(tzinfo=None)) & (t_data <= new_end.replace(tzinfo=None))
     t_data = t_data[mask]
     b_data = b_data[mask]
     
@@ -982,14 +1072,234 @@ def check_fittingpoints(graph, reference_frame, infodata, view_legend_insitu, sh
         
             
     # Calculate the y-axis limits for the second subplot
-    min_b_data = np.min(b_data)
-    max_b_data = np.max(b_data)
+    min_b_data = np.nanmin(b_data)
+    max_b_data = np.nanmax(b_data)
     y_range_padding = 10  # Adjust this value as needed
 
-    fig.update_yaxes(title_text='B [nT]', row=1, col=1, range=[min_b_data - y_range_padding, max_b_data + y_range_padding])
-    fig.update_yaxes(showgrid=True, zeroline=False, showticklabels=True,
+    fig.update_yaxes(title_text='B [nT]', row=1, col=1, range=[min_b_data - y_range_padding, max_b_data + y_range_padding], showgrid=True, zeroline=False, showticklabels=True,
+                     showspikes=True, spikemode='across', spikesnap='cursor', showline=False, spikedash='solid',
+                     spikethickness=1)
+    fig.update_xaxes(showgrid=True, zeroline=False, showticklabels=True, rangeslider_visible=False,
                      showspikes=True, spikemode='across', spikesnap='cursor', showline=False, spikedash='solid',
                      spikethickness=1, row=1, col=1)
+
+    
+    height = 350
+    
+   
+    
+    fig.update_layout(height=height, width = 1000, showlegend=view_legend_insitu)
+    
+    #fig.show()
+    return fig, t_s, t_e, t_fit
+
+
+
+def plot_simpleres(pos_array, results, plottheme, graph, reference_frame, infodata, view_legend_insitu, showtitle = True, t_s = None, t_e= None):
+    
+    
+    sc = infodata['sc'][0]
+    if t_s == None:
+        begin = infodata['begin'][0]
+        end = infodata['end'][0]
+    else:
+        begin = t_s
+        end = t_e
+    
+    template = "none"
+    bg_color = 'rgba(0, 0,0, 0)'
+    line_color = 'black'
+    line_colors = ['red','green','blue','black']
+    eventshade = "LightSalmon"
+
+    if infodata['id'][0] == 'I':
+        opac = 0
+    else:
+        opac = 0.5
+
+    dateFormat = "%Y-%m-%dT%H:%M:%S%z"
+    dateFormat2 = "%Y-%m-%d %H:%M:%S"
+    dateFormat3 = "%Y-%m-%dT%H:%M:%S"
+
+    try:
+        begin = datetime.datetime.strptime(begin, dateFormat2)
+    except:
+        try:
+            begin = datetime.datetime.strptime(begin, dateFormat)
+        except:
+            try:
+                begin = datetime.datetime.strptime(begin, dateFormat3)
+            except:
+                pass
+
+    try:
+        end = datetime.datetime.strptime(end, dateFormat2)
+    except:
+        try:
+            end = datetime.datetime.strptime(end, dateFormat)
+        except:
+            try:
+                end = datetime.datetime.strptime(end, dateFormat3)
+            except:
+                pass
+            
+    t_data = graph['t_data']
+    if reference_frame == "HEEQ":
+        b_data = graph['b_data_HEEQ']
+        names = ['Bx', 'By', 'Bz']
+    else:
+        b_data = graph['b_data_RTN']
+        names = ['Br', 'Bt', 'Bn']
+
+    
+    if showtitle:
+        fig = make_subplots(rows=1, cols=1, specs = [[{"type": "xy"}]], subplot_titles = [str(infodata['id'][0]+'_'+reference_frame)])
+    else:
+        fig = make_subplots(rows=1, cols=1, specs = [[{"type": "xy"}]])    
+    
+    
+    
+    
+
+    
+    ############## INSITU THING ###################
+    
+    # Calculate the new time range for the plot
+    new_begin = begin - datetime.timedelta(hours=12)
+    new_end = end + datetime.timedelta(hours=12)
+
+    # Filter the data to the new time range
+    mask = (t_data >= new_begin.replace(tzinfo=None)) & (t_data <= new_end.replace(tzinfo=None))
+    t_data = t_data[mask]
+    b_data = b_data[mask]
+    
+    fig.add_trace(
+        go.Scatter(
+            x=t_data,
+            y=b_data[:, 0],
+            name=names[0],
+            line_color=line_colors[0],
+            line_width = 1,
+            showlegend=view_legend_insitu,
+        ),
+        row=1, col=1
+    )
+
+    fig.add_trace(
+        go.Scatter(
+            x=t_data,
+            y=b_data[:, 1],
+            name=names[1],
+            line_color=line_colors[1],
+            line_width = 1,
+            showlegend=view_legend_insitu,
+        ),
+        row=1, col=1
+    )
+
+    fig.add_trace(
+        go.Scatter(
+            x=t_data,
+            y=b_data[:, 2],
+            name=names[2],
+            line_color=line_colors[2],
+            line_width = 1,
+            showlegend=view_legend_insitu,
+        ),
+        row=1, col=1
+    )
+
+    fig.add_trace(
+        go.Scatter(
+            x=t_data,
+            y=np.sqrt(np.sum(b_data**2, axis=1)),
+            name='Btot',
+            line_color=line_colors[3],
+            line_width = 1,
+            showlegend=view_legend_insitu,
+        ),
+        row=1, col=1
+    )
+        
+    # Define the shape for the vertical rectangle
+    rect_shape = {
+        'type': 'rect',
+        'x0': begin,
+        'x1': end,
+        'y0': -100,  # Adjust the y0 and y1 values as needed
+        'y1': 100,
+        'fillcolor': eventshade,
+        'opacity': opac,
+        'layer': "below",
+        'line_width': 0,
+        'xref': 'x',  # Position relative to the x-axis
+        'yref': 'y2'  # Position relative to the second subplot
+    }
+
+    # Add the shape to the data of the figure
+    fig.add_shape(rect_shape,row=1, col=1)
+    
+    
+    if t_s == None:
+        t_s = begin
+        
+    if t_e == None:
+        t_e = end
+        
+    if t_fit == None or t_fit == []:
+        time_difference = (t_e - t_s)
+
+        # Calculate the interval between each of the four times
+        interval = time_difference / 5
+        
+        # Calculate and round t_1, t_2, t_3, and t_4
+        t_1 = t_s + interval
+        t_2 = t_1 + interval
+        t_3 = t_2 + interval
+        t_4 = t_3 + interval
+
+        # Round the times to the nearest 30-minute precision
+        t_1 = t_1 - datetime.timedelta(minutes=t_1.minute % 30, seconds=t_1.second, microseconds=t_1.microsecond)
+        t_2 = t_2 - datetime.timedelta(minutes=t_2.minute % 30, seconds=t_2.second, microseconds=t_2.microsecond)
+        t_3 = t_3 - datetime.timedelta(minutes=t_3.minute % 30, seconds=t_3.second, microseconds=t_3.microsecond)
+        t_4 = t_4 - datetime.timedelta(minutes=t_4.minute % 30, seconds=t_4.second, microseconds=t_4.microsecond)
+        
+        t_fit = [t_1, t_2, t_3, t_4]
+    
+    fig.add_vrect(
+        x0=t_s,
+        x1=t_s,
+        line=dict(color="Red", width=.5),
+        name="Ref_A",  # Add label "Ref_A" for t_s
+    )
+
+    fig.add_vrect(
+    x0=t_e,
+    x1=t_e,
+    line=dict(color="Red", width=.5),
+    name="Ref_B",  # Add label "Ref_B" for t_e
+    )
+
+    for idx, line in enumerate(t_fit):
+        fig.add_vrect(
+            x0=line,
+            x1=line,
+            line=dict(color="Black", width=.5),
+            name=f"t_{idx + 1}",  # Add labels for each line in t_fit
+        )
+            
+            
+            
+        
+            
+    # Calculate the y-axis limits for the second subplot
+    min_b_data = np.nanmin(b_data)
+    max_b_data = np.nanmax(b_data)
+    y_range_padding = 10  # Adjust this value as needed
+
+    fig.update_yaxes(title_text='B [nT]', row=1, col=1, range=[min_b_data - y_range_padding, max_b_data + y_range_padding], showgrid=True, zeroline=False, showticklabels=True,
+                     showspikes=True, spikemode='across', spikesnap='cursor', showline=False, spikedash='solid',
+                     spikethickness=1)
     fig.update_xaxes(showgrid=True, zeroline=False, showticklabels=True, rangeslider_visible=False,
                      showspikes=True, spikemode='across', spikesnap='cursor', showline=False, spikedash='solid',
                      spikethickness=1, row=1, col=1)
