@@ -736,9 +736,12 @@ def check_animation(pos_array, results, plottheme, graph, reference_frame, rinpu
                     outa = np.array(model_obj.simulator(graph['t_data'], graph['pos_data']), dtype=object)
             else:
                 outa = np.array(model_obj.simulator(graph['t_data'], graph['pos_data']), dtype=object)
-                #print(graph['t_data'])
+                #print(type(graph['t_data']))
                 
-                #print(graph['pos_data'])
+                #print(type(graph['pos_data']))
+                print(np.shape(graph['t_data']))
+                
+                print(np.shape(graph['pos_data']))
             
             outa = np.squeeze(outa[0])
             

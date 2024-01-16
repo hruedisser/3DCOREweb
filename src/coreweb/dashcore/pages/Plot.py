@@ -419,10 +419,9 @@ def update_posfig(posstore, rinput, lonput, latput, nclicks, togglerange, timesl
                     pass
             else:
 
-                #print(graph['t_data'])
-                #print(graph['pos_data'])
+                modified_pos = [[0 if value is None else value for value in sublist] for sublist in graph['pos_data']]
 
-                outa = np.array(model_obj.simulator(graph['t_data'], graph['pos_data']), dtype=object)
+                outa = np.array(model_obj.simulator(graph['t_data'], modified_pos), dtype=object)
                 
                 
                 #print(graph['pos_data'])
@@ -435,7 +434,9 @@ def update_posfig(posstore, rinput, lonput, latput, nclicks, togglerange, timesl
                     outa[:, 0],outa[:, 1],outa[:, 2] = rtn_bx, rtn_by, rtn_bz
             else:
                 if refframe == "RTN":
-                    x,y,z = hc.separate_components(graph['pos_data'])
+                    modified_pos = [[0 if value is None else value for value in sublist] for sublist in graph['pos_data']]
+
+                    x,y,z = hc.separate_components(modified_pos)
                     rtn_bx, rtn_by, rtn_bz = hc.convert_HEEQ_to_RTN_mag(x,y,z, outa[:, 0],outa[:, 1],outa[:, 2])
                     outa[:, 0],outa[:, 1],outa[:, 2] = rtn_bx, rtn_by, rtn_bz
                         
