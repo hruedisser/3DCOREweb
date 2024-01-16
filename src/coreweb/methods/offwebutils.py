@@ -730,14 +730,20 @@ def update_posfig_offweb(posstore, rinput, lonput, latput, togglerange, timeslid
         if "Earth" in bodyoptions:
 
             # Create data for the Earth
-            earth_trace = go.Scatter3d(
-                x=[1], y=[0], z=[0],
-                mode='markers',
-                marker=dict(size=4, color='mediumseagreen'),
-                name='Earth'
-            )
+            try:
+                fig.add_trace(plot_body3d(graph['bodydata']['Earth']['data'], roundedlaunch + datetime.timedelta(hours=timeslider), 'mediumseagreen', 'Earth')[0])
+            except Exception as e:
+                print('Data for Earth not found: ', e)
 
-            fig.add_trace(earth_trace)
+
+            #earth_trace = go.Scatter3d(
+            #    x=[1], y=[0], z=[0],
+            #    mode='markers',
+            #    marker=dict(size=4, color='mediumseagreen'),
+            #    name='Earth'
+            #)
+
+            #fig.add_trace(earth_trace)
                         
         if "Mercury" in bodyoptions:
             try:

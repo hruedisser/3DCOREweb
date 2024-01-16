@@ -178,7 +178,7 @@ class FittingData(object):
                 #print(type(data))
                 #print(data)
 
-                #data[np.isnan(data)] = 0 #set all nan values to 0
+                data[np.isnan(data)] = 0 #set all nan values to 0
 
                 # fF, fS = power_spectral_density(dt, data, format_for_fft=True)
                 fF, fS = mag_fft(dt, data, sampling_freq=sampling_freq) # computes the mean power spectrum distribution

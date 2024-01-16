@@ -5,7 +5,7 @@ import plotly.figure_factory as ff
 
 import coreweb
 
-from coreweb.dashcore.utils.utils import cart2sphere, sphere2cart, round_to_hour_or_half, get_iparams_live, process_coordinates
+from coreweb.dashcore.utils.utils import cart2sphere, sphere2cart, round_to_hour_or_half, get_iparams_live, process_coordinates, plot_body3d
 import coreweb.dashcore.utils.heliocats as hc
 
 import numpy as np 
@@ -334,15 +334,19 @@ def check_animation(pos_array, results, plottheme, graph, reference_frame, rinpu
         if "Earth" in bodyoptions:
 
             # Create data for the Earth
-            earth_trace = go.Scatter3d(
-                x=[1], y=[0], z=[0],
-                mode='markers',
-                marker=dict(size=4, color='mediumseagreen'),
-                name='Earth',
-                legendgroup = '1'
-            )
+            #earth_trace = go.Scatter3d(
+            #    x=[1], y=[0], z=[0],
+            #    mode='markers',
+            #    marker=dict(size=4, color='mediumseagreen'),
+            #    name='Earth',
+            #    legendgroup = '1'
+            #)
+            try:
+                fig.add_trace(plot_body3d(graph['bodydata']['Earth']['data'], roundedlaunch + datetime.timedelta(hours=timeslider), 'mediumseagreen', 'Earth')[0])
+            except Exception as e:
+                print('Data for Earth not found: ', e)
 
-            fig.add_trace(earth_trace, row=posrow, col=1)
+            #fig.add_trace(earth_trace, row=posrow, col=1)
                         
         if "Mercury" in bodyoptions:
             try:

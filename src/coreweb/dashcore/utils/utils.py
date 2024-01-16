@@ -948,11 +948,13 @@ def load_body_data(mag_coord_system, date, datafile = None):
     planets = [1, # Mercury
               2, #Venus
               4, #Mars
+              3, # Earth
               ]
     colors = ['slategrey',
              'darkgoldenrod',
-             'red']
-    names = ['Mercury', 'Venus', 'Mars']
+             'red',
+             'mediumseagreen']
+    names = ['Mercury', 'Venus', 'Mars', 'Earth']
     
     dicc = {}
         
@@ -1313,6 +1315,14 @@ def sphere2cart(r,lat,lon):
     z = r * np.cos( lat )
     return (x, y,z)
 
+def interpolate_points(point1, point2, num_points):
+    # Generate an array of linearly spaced values between 0 and 1
+    t_values = np.linspace(0, 1, num_points)
+
+    # Use linear interpolation to find points along the line
+    interpolated_points = (1 - t_values)[:, np.newaxis] * point1 + t_values[:, np.newaxis] * point2
+
+    return interpolated_points
 
 class Event:
     

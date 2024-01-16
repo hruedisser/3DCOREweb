@@ -418,6 +418,10 @@ def update_posfig(posstore, rinput, lonput, latput, nclicks, togglerange, timesl
                 except:
                     pass
             else:
+
+                #print(graph['t_data'])
+                #print(graph['pos_data'])
+
                 outa = np.array(model_obj.simulator(graph['t_data'], graph['pos_data']), dtype=object)
                 
                 
