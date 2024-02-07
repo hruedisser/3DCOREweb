@@ -27,13 +27,416 @@ from coreweb.methods.method import BaseMethod
 from coreweb.methods.data import FittingData
 from coreweb.methods.abc_smc import abc_smc_worker
 
+import copy
+
 manager = mp.Manager()
 processes = []
         
         
-import os 
+import os  
+from PIL import Image
+
+def ropechecker(iparams):
+    paramlist = []
+
+    highincflag = False
+
+    if iparams['iparams']['t_factor']['default_value'] > 0:
+        ropetype = "RH"
+        rhparam = iparams['iparams']['t_factor']['default_value']
+        lhparam = -rhparam
+    else:
+        ropetype = "LH"
+        lhparam = iparams['iparams']['t_factor']['default_value']
+        rhparam = -lhparam
+
+    if iparams['iparams']['cme_inclination']['default_value'] > 90 and iparams['iparams']['cme_inclination']['default_value'] < 90 + 180:
+        inc1 = iparams['iparams']['cme_inclination']['default_value']
+        inc2 = inc1 + 180
+        ropetype = ropetype + '-1'
+    else:
+        ropetype = ropetype + '-2'
+        inc2 = iparams['iparams']['cme_inclination']['default_value']
+        inc1 = inc2 + 180
 
 
+   
+    if inc1 > 360:
+        inc1 = inc1 - 360
+    if inc2 > 360:
+        inc2 = inc2 - 360
+
+    if inc1 == 45 or inc2 == 45:
+        raise TypeError('Intermediate Type!')
+
+    if inc1 > 45 and inc1 < 45 + 90:
+        print('High Inclination!')
+        highincflag = True
+
+    if inc2 > 45 and inc2 < 45 + 90:
+        print('High Inclination!')
+        highincflag = True
+
+    
+    if ropetype == "RH-1":
+        if highincflag == False:
+            print('righthanded: SWN')
+        else:
+            print('righthanded: ESW')
+    elif ropetype == "RH-2":
+        if highincflag == False:
+            print('righthanded: NES')
+        else:
+            print('righthanded: ENW')
+        
+    elif ropetype == "LH-1":
+        if highincflag == False:
+            print('lefthanded: NWS')
+        else:
+            print('lefthanded: WSE')
+    else:
+        if highincflag == False:
+            print('lefthanded: SEN')
+        print('lefthanded: WNE')
+
+
+    ## RH - 1
+    rh_1_params = copy.deepcopy(iparams)  # Perform a deep copy of iparams
+    rh_1_params['iparams']['t_factor']['default_value'] = rhparam
+    rh_1_params['iparams']['cme_inclination']['default_value'] = inc1
+    paramlist.append(rh_1_params)
+
+    ## RH - 2
+    rh_2_params = copy.deepcopy(iparams)  # Perform a deep copy of iparams
+    rh_2_params['iparams']['t_factor']['default_value'] = rhparam
+    rh_2_params['iparams']['cme_inclination']['default_value'] = inc2
+    paramlist.append(rh_2_params)
+
+    ## LH - 1
+    lh_1_params = copy.deepcopy(iparams)  # Perform a deep copy of iparams
+    lh_1_params['iparams']['t_factor']['default_value'] = lhparam
+    lh_1_params['iparams']['cme_inclination']['default_value'] = inc1
+    paramlist.append(lh_1_params)
+
+    ## LH - 2
+    lh_2_params = copy.deepcopy(iparams)  # Perform a deep copy of iparams
+    lh_2_params['iparams']['t_factor']['default_value'] = lhparam
+    lh_2_params['iparams']['cme_inclination']['default_value'] = inc2
+    paramlist.append(lh_2_params)
+
+    return paramlist, highincflag
+
+def ropeplotter(modelstatevars, timeslide):
+
+    figs = []
+
+    iparams = get_iparams_live(*modelstatevars)
+
+    iparamlist, highincflag = ropechecker(iparams)
+    if highincflag == False:
+        fluxtypes = [
+            ["SWN","",""], # RH-1
+            ["NES","",""], # RH-2
+            ["NWS","",""], # LH-1
+            ["SEN","",""] # LH-2
+            ]
+    else:
+        fluxtypes = [
+            ["ESW","",""], # RH-1
+            ["ENW","",""], # RH-2
+            ["WSE","",""], # LH-1
+            ["WNE","",""] # LH-2
+            ]
+    
+    names = ['Br', 'Bt', 'Bn']
+    
+    modelvartypes = []
+
+    specs = [
+        [{"type": "scene", "rowspan": 2}, {"type": "scene", "rowspan": 2}],
+        [None, None],
+        [{"type": "xy", "colspan": 2}, None]
+    ]
+
+    template = "none"  
+    bg_color = 'rgba(0,0,0,0)'
+    line_color = 'black'
+    line_colors = ['red','green','blue','black']
+    eventshade = "LightSalmon"
+    framecolor = 'rgba(100, 100, 100, 0.8)'
+    cmecolor = 'rgba(100, 100, 100, 0.8)'
+
+    roundedlaunch = datetime.datetime(2012,12,21,6)
+    insituend = roundedlaunch + datetime.timedelta(hours=100)
+    resolution = datetime.timedelta(minutes=1)
+    t_data = [roundedlaunch + i * resolution for i in range(int((insituend - roundedlaunch).total_seconds() / resolution.total_seconds()))]
+
+    for i, fluxtype in enumerate(fluxtypes):
+
+        print(iparamlist[i])
+        ### general stuff
+
+        fig = make_subplots(
+            rows=3,
+            cols=2,
+            specs=specs,
+            subplot_titles=fluxtype)
+        
+        
+
+        model_obj = coreweb.ToroidalModel(roundedlaunch, **iparamlist[i]) # model gets initialized
+        model_obj.generator()
+
+        ### polar
+
+        model_obj.propagator(roundedlaunch + datetime.timedelta(hours=timeslide))
+            
+        wf_model = model_obj.visualize_shape(iparam_index=0)  
+        
+        wf_array = np.array(wf_model)
+
+        # Extract x, y, and z data from wf_array
+        x = wf_array[:,:,0].flatten()
+        y = wf_array[:,:,1].flatten()
+        z = wf_array[:,:,2].flatten()
+
+        # Create a 3D wireframe plot using plotly
+        fig.add_trace(go.Scatter3d(x=x, y=y, z=z, mode='lines',
+                        line=dict(width=1, color=cmecolor),
+                        showlegend=False), row=1, col=1)
+
+        # Transpose the wf_array to extract wireframe points along the other direction
+        x_wire = wf_array[:,:,0].T.flatten()
+        y_wire = wf_array[:,:,1].T.flatten()
+        z_wire = wf_array[:,:,2].T.flatten()
+
+        # Create another 3D wireframe plot using plotly
+        fig.add_trace(go.Scatter3d(x=x_wire, y=y_wire, z=z_wire, mode='lines',
+                        line=dict(width=1, color=cmecolor),
+                        showlegend=False), row=1, col=1)
+        
+        # Create data for the Sun
+        sun_trace = go.Scatter3d(
+            x=[0], y=[0], z=[0],
+            mode='markers',
+            marker=dict(size=8, color='yellow'),
+            name='Sun',
+            showlegend=False,
+        )
+
+        fig.add_trace(sun_trace, row=1, col=1)
+
+        rinput = 0.7
+        lonput = 0
+        latput = 0
+
+        longmove_array = get_longmove_array(0, rinput,lonput,latput, None)
+
+        x,y,z = longmove_array[60*int(timeslide)] #sphere2cart(float(rinput), np.deg2rad(-float(latput)+90), np.deg2rad(float(lonput)))
+        fig.add_trace(
+            go.Scatter3d(
+                x=[x], y=[y], z=[z],
+                mode='markers', 
+                marker=dict(size=3, 
+                            symbol='square',
+                            color='red'),
+                name="SYN",
+                customdata=np.vstack((rinput, latput, lonput)).T,
+                showlegend=False,
+                legendgroup = '1',
+            ), row=1, col=1)
+        
+
+        # Create data for concentrical circles
+        circle_traces = []
+        radii = [0.3, 0.5, 0.8]  # Radii for the concentrical circles
+        for r in radii:
+            theta = np.linspace(0, 2 * np.pi, 100)
+            x = r * np.cos(theta)
+            y = r * np.sin(theta)
+            z = np.zeros_like(theta)
+            circle_trace = go.Scatter3d(
+                x=x, y=y, z=z,
+                mode='lines',
+                line=dict(color='gray'),
+                showlegend=False,
+                hovertemplate = None, 
+                hoverinfo = "skip", 
+            )
+            fig.add_trace(circle_trace, row=1, col=1)
+
+            # Add labels for the circles next to the line connecting Sun and Earth
+            label_x = r  # x-coordinate for label position
+            label_y = 0  # y-coordinate for label position
+            label_trace = go.Scatter3d(
+                x=[label_x], y=[label_y], z=[0],
+                mode='text',
+                text=[f'{r} AU'],
+                textposition='middle left',
+                textfont=dict(size=8),
+                showlegend=False,
+                hovertemplate = None, 
+                hoverinfo = "skip", 
+            )
+            fig.add_trace(label_trace, row=1, col=1)
+
+        
+        
+        
+        
+        # Create data for the AU lines and their labels
+        num_lines = 8
+        for i in range(num_lines):
+            angle_degrees = -180 + (i * 45)  # Adjusted angle in degrees (-180 to 180)
+            angle_radians = np.deg2rad(angle_degrees)
+            x = [0, np.cos(angle_radians)]
+            y = [0, np.sin(angle_radians)]
+            z = [0, 0]
+            au_line = go.Scatter3d(
+                x=x, y=y, z=z,
+                mode='lines',
+                line=dict(color=framecolor),
+                name=f'{angle_degrees}°',
+                showlegend=False,
+                hovertemplate = None, 
+                hoverinfo = "skip", 
+            )
+            fig.add_trace(au_line, row=1, col=1)
+
+            # Add labels for the AU lines
+            label_x = 1.1 * np.cos(angle_radians)
+            label_y = 1.1 * np.sin(angle_radians)
+            label_trace = go.Scatter3d(
+                x=[label_x], y=[label_y], z=[0],
+                mode='text',
+                text=[f'+/{angle_degrees}°' if angle_degrees == -180 else f'{angle_degrees}°'],
+                textposition='middle center',
+                textfont=dict(size=8),
+                showlegend=False,
+                hovertemplate = None, 
+                hoverinfo = "skip", 
+            )
+            fig.add_trace(label_trace, row=1, col=1)
+
+        ran = 1.2
+
+        # Set the layout
+        fig.update_layout(
+            template=template, 
+            plot_bgcolor=bg_color,  # Background color for the entire figure
+            scene=dict(
+                xaxis=dict(showticklabels=False, showgrid=False, zeroline=False, showline=False, title='', showspikes=False, range=[-ran, ran]),  # Adjust the range as needed
+                yaxis=dict(showticklabels=False, showgrid=False, zeroline=False, showline=False, title='', showspikes=False, range=[-ran, ran]),  # Adjust the range as needed
+                zaxis=dict(showticklabels=False, showgrid=False, zeroline=False, showline=False, title='', showspikes=False, range=[-ran, ran]),  # Adjust the range as needed
+                aspectmode='cube',
+                camera=dict(eye=dict(x=0.7, y=0, z=0.5)),
+                bgcolor=bg_color,
+            ),
+        )
+
+        import base64
+
+        strname = fluxtype[0] + '.png'
+
+        if highincflag == False:
+            # Load the PNG image into the top-right subplot
+            with open(strname, 'rb') as f:
+                image_data = base64.b64encode(f.read()).decode('ascii')
+                img = go.layout.Image(
+                    source='data:image/png;base64,' + image_data,
+                    xref="paper", yref="paper",
+                    x=0.9, y=0.55,
+                    sizex=0.25, sizey=0.25,
+                    xanchor="right", yanchor="bottom"
+                )
+                fig.add_layout_image(img)
+        else:
+            # Load the PNG image into the top-right subplot
+            with open(strname, 'rb') as f:
+                image_data = base64.b64encode(f.read()).decode('ascii')
+                img = go.layout.Image(
+                    source='data:image/png;base64,' + image_data,
+                    xref="paper", yref="paper",
+                    x=0.7, y=0.55,
+                    sizex=0.5, sizey=0.5,
+                    xanchor="right", yanchor="bottom"
+                )
+                fig.add_layout_image(img)
+
+        
+        
+        outa = np.array(model_obj.simulator(t_data, longmove_array), dtype=object)
+
+        outa = np.squeeze(outa[0])
+
+        rtn_bx, rtn_by, rtn_bz = hc.convert_HEEQ_to_RTN_mag(longmove_array[:, 0], longmove_array[:, 1], longmove_array[:, 2], outa[:, 0],outa[:, 1],outa[:, 2])
+        outa[:, 0],outa[:, 1],outa[:, 2] = rtn_bx, rtn_by, rtn_bz
+
+        outa[outa==0] = np.nan
+
+        fig.add_trace(
+            go.Scatter(
+                x=t_data,
+                y=outa[:, 0],
+                line=dict(color=line_colors[0], width=3, dash='dot'),
+                name=names[0],
+            ),
+            row=3, col=1
+        )
+
+        fig.add_trace(
+            go.Scatter(
+                x=t_data,
+                y=outa[:, 1],
+                line=dict(color=line_colors[1], width=3, dash='dot'),
+                name=names[1],
+            ),
+            row=3, col=1
+        )
+
+        fig.add_trace(
+            go.Scatter(
+                x=t_data,
+                y=outa[:, 2],
+                line=dict(color=line_colors[2], width=3, dash='dot'),
+                name=names[2]+'',
+            ),
+            row=3, col=1
+        )
+
+        fig.add_trace(
+            go.Scatter(
+                x=t_data,
+                y=np.sqrt(np.sum(outa**2, axis=1)),
+                line=dict(color=line_colors[3], width=3, dash='dot'),
+                name='Btot',
+            ),
+            row=3, col=1
+        )
+
+        # Sample a subset of time steps for tick labels
+        max_ticks = 10  # Adjust the number of ticks as needed
+        sampled_ticks = t_data[::len(t_data) // max_ticks]
+
+        # Update x-axis tick labels
+        tick_labels = [("+ " + str(int((i - roundedlaunch).total_seconds()/3600)) + " h") for i in sampled_ticks]
+
+        fig.update_xaxes(tickvals=sampled_ticks, ticktext=tick_labels, row=3, col=1)
+
+
+
+        fig.update_yaxes(title_text='B [nT]', row=3, col=1) #, range=[min_b_data - y_range_padding, max_b_data + y_range_padding])
+        fig.update_yaxes(showgrid=True, zeroline=False, showticklabels=True,
+                         showspikes=True, spikemode='across', spikesnap='cursor', showline=False, spikedash='solid',
+                         spikethickness=1, row=3, col=1)
+        fig.update_xaxes(showgrid=True, zeroline=False, showticklabels=True, rangeslider_visible=False,
+                         showspikes=True, spikemode='across', spikesnap='cursor', showline=False, spikedash='solid',
+                         spikethickness=1, row=3, col=1)
+
+
+        figs.append(fig)
+
+    return figs
 
 def get_eventinfo(cat_event, purelysyn = False, custom = False):
 
@@ -1460,9 +1863,12 @@ def offwebfit(t_launch, eventinfo, graphstore, multiprocessing, t_s, t_e, t_fit,
 
 
 
-def create_movie(degmove, deltatime, longmove_array, results, plottheme, graphstore, reference_frame, rinput, lonput, latput, currenttimeslider, eventinfo, launchlabel, plot_options, spacecraftoptions, bodyoptions,  insitu, positions, view_legend_insitu, camera, posstore, *modelstatevars):
+def create_movie(degmove, timeres, deltatime, longmove_array, results, plottheme, graphstore, reference_frame, rinput, lonput, latput, currenttimeslider, eventinfo, launchlabel, plot_options, spacecraftoptions, bodyoptions,  insitu, positions, view_legend_insitu, camera, posstore, *modelstatevars):
 
-    ks = deltatime*2 
+    if timeres == None:
+        timeres = 30
+        
+    ks = int(deltatime* 60/timeres)
 
     deg_per = degmove / ks
     currentcam = camera
@@ -1474,7 +1880,7 @@ def create_movie(degmove, deltatime, longmove_array, results, plottheme, graphst
     # Format the datetime as a string
     current_time = current_datetime.strftime("%Y%m%d%H%M")
 
-
+    print(currentcam)
 
     path = 'src/coreweb/dashcore/temp/' + current_time + '/'
 

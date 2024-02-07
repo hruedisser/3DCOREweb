@@ -99,7 +99,10 @@ def angular_speed_in_degrees_per_hour(semi_major_axis_AU):
 
 def get_longmove_array(longmove, rinput, lonput, latput, graph):
     
-    desired_length = len(graph['t_data'])
+    if graph == None:
+        desired_length = 6000
+    else:         
+        desired_length = len(graph['t_data'])
     pos_array = np.empty((desired_length, 3))
 
     if longmove == 0:
@@ -342,7 +345,7 @@ def check_animation(pos_array, results, plottheme, graph, reference_frame, rinpu
             #    legendgroup = '1'
             #)
             try:
-                fig.add_trace(plot_body3d(graph['bodydata']['Earth']['data'], roundedlaunch + datetime.timedelta(hours=timeslider), 'mediumseagreen', 'Earth')[0])
+                fig.add_trace(plot_body3d(graph['bodydata']['Earth']['data'], roundedlaunch + datetime.timedelta(hours=timeslider), 'mediumseagreen', 'Earth',legendgroup = '1')[0])
             except Exception as e:
                 print('Data for Earth not found: ', e)
 
@@ -739,9 +742,9 @@ def check_animation(pos_array, results, plottheme, graph, reference_frame, rinpu
                 #print(type(graph['t_data']))
                 
                 #print(type(graph['pos_data']))
-                print(np.shape(graph['t_data']))
+                #print(np.shape(graph['t_data']))
                 
-                print(np.shape(graph['pos_data']))
+                #print(np.shape(graph['pos_data']))
             
             outa = np.squeeze(outa[0])
             
@@ -760,6 +763,7 @@ def check_animation(pos_array, results, plottheme, graph, reference_frame, rinpu
             outa[outa==0] = np.nan
 
             names = graph['names']
+
 
             fig.add_trace(
                 go.Scatter(
@@ -857,7 +861,7 @@ def check_animation(pos_array, results, plottheme, graph, reference_frame, rinpu
     if insitu:
         height = height + 350
     
-    gapwidth = 550 + 5 * len(bodyoptions) + 5 * len(spacecraftoptions)
+    gapwidth = 540 + 5 * len(bodyoptions) + 5 * len(spacecraftoptions)
     
     if camera != 'auto':
         

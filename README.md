@@ -18,7 +18,7 @@ Install the latest version of HelioSat manually using `git`: (Optional - to avoi
 Install the latest version manually using `git`:
 
     git clone https://github.com/hruedisser/3DCOREweb
-    cd py3DCORE
+    cd 3DCOREweb
     pip install -e .
     
 Install all necessary packages:

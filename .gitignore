@@ -116,3 +116,4 @@ src/coreweb/dashcore/output/
 src/coreweb/dashcore/data/IC*
 src/coreweb/dashcore/data/uploaded/
 src/coreweb/dashcore/data/archive/
+src/coreweb/dashcore/temp/

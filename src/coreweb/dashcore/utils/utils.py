@@ -47,6 +47,72 @@ from scipy.io import readsav
 import matplotlib.pyplot as plt
 
 
+import copy
+
+def convert_HEE_to_HEEQ_single(obsdate_mjd, x, y, z):
+    '''
+    for Wind positions: convert HEE to HAE to HEEQ
+    '''
+
+    print('conversion HEE to HEEQ')                                
+    
+    jd = Time(obsdate_mjd + 2400000.5, format='mjd').jd
+    mjd = obsdate_mjd
+
+    w_hee = [x, y, z]
+
+    # HEE to HAE        
+
+    # define T00 and UT
+    T00 = (mjd - 51544.5) / 36525.0          
+    dobj = Time(obsdate_mjd, format='mjd')
+    UT = dobj.datetime.hour + dobj.datetime.minute / 60. + dobj.datetime.second / 3600. # time in UT in hours   
+
+    # lambda_sun in Hapgood, equation 5, here in rad
+    M = np.radians(357.528 + 35999.050 * T00 + 0.04107 * UT)
+    LAMBDA = 280.460 + 36000.772 * T00 + 0.04107 * UT        
+    lambda_sun = np.radians((LAMBDA + (1.915 - 0.0048 * T00) * np.sin(M) + 0.020 * np.sin(2 * M)))
+
+    # S-1 Matrix equation 12 hapgood 1992, change sign in lambda angle for inversion HEE to HAE instead of HAE to HEE
+    c, s = np.cos(-(lambda_sun + np.radians(180))), np.sin(-(lambda_sun + np.radians(180)))
+    Sm1 = np.array(((c, s, 0), (-s, c, 0), (0, 0, 1)))
+    w_hae = np.dot(Sm1, w_hee)
+
+    # HAE to HEEQ
+
+    iota = np.radians(7.25)
+    omega = np.radians((73.6667 + 0.013958 * ((mjd + 3242) / 365.25)))                      
+    theta = np.arctan(np.cos(iota) * np.tan(lambda_sun - omega))                       
+
+    # quadrant of theta must be opposite lambda_sun minus omega; Hapgood 1992 end of section 5   
+    # get lambda-omega angle in degree mod 360 and theta in degrees
+    lambda_omega_deg = np.mod(np.degrees(lambda_sun) - np.degrees(omega), 360)
+    theta_node_deg = np.degrees(theta)
+
+    # if the 2 angles are close to similar, so in the same quadrant, then theta_node = theta_node +pi           
+    if np.logical_or(abs(lambda_omega_deg - theta_node_deg) < 1, abs(lambda_omega_deg - 360 - theta_node_deg) < 1): 
+        theta = theta + np.pi                                                                                                          
+
+    # rotation around Z by theta
+    c, s = np.cos(theta), np.sin(theta)
+    S2_1 = np.array(((c, s, 0), (-s, c, 0), (0, 0, 1)))
+
+    # rotation around X by iota  
+    iota = np.radians(7.25)
+    c, s = np.cos(iota), np.sin(iota)
+    S2_2 = np.array(((1, 0, 0), (0, c, s), (0, -s, c)))
+
+    # rotation around Z by Omega  
+    c, s = np.cos(omega), np.sin(omega)
+    S2_3 = np.array(((c, s, 0), (-s, c, 0), (0, 0, 1)))
+
+    # matrix multiplication to go from HAE to HEEQ components                
+    [x_heeq, y_heeq, z_heeq] = np.dot(np.dot(np.dot(S2_1, S2_2), S2_3), w_hae) 
+
+    print('HEE to HEEQ done')  
+    
+    return x_heeq, y_heeq, z_heeq
+
 ############################################################
 ############################################################
 ######################## DASH UTILS ########################
@@ -307,7 +373,7 @@ def make_progress_graph(progress, total, rmse, rmse_prev, iteration, status):
 
 
 
-def plot_body3d(data_list, nowdate, color, sc):
+def plot_body3d(data_list, nowdate, color, sc, legendgroup = None):
     '''
     plots the current 3d position for a body
     '''
@@ -328,7 +394,8 @@ def plot_body3d(data_list, nowdate, color, sc):
 
     now_time_str = [time.strftime("%Y-%m-%d %H:%M:%S") for time in times_now_list]
     
-    trace = go.Scatter3d(x=x_now, y=y_now, z=z_now,
+    if legendgroup == None:
+        trace = go.Scatter3d(x=x_now, y=y_now, z=z_now,
                          mode='markers', 
                          marker=dict(size=4, 
                                      #symbol='square',
@@ -338,6 +405,18 @@ def plot_body3d(data_list, nowdate, color, sc):
                          showlegend=True, 
                          hovertemplate="%{text}<br><b>(x, y, z):</b> (%{x:.2f} AU, %{y:.2f} AU, %{z:.2f} AU)<br><b>(r, lon, lat):</b> (%{customdata[0]:.2f} AU, %{customdata[2]:.2f}°, %{customdata[1]:.2f}°)<extra>" 
                          + sc + "</extra>", text=now_time_str),
+    
+    else:
+        trace = go.Scatter3d(x=x_now, y=y_now, z=z_now,
+                         mode='markers', 
+                         marker=dict(size=4, 
+                                     #symbol='square',
+                                     color=color),
+                         name=sc, 
+                         customdata=np.vstack((r_now, lon_now, lat_now )).T,  # Custom data for r, lat, lon values
+                         showlegend=True, 
+                         hovertemplate="%{text}<br><b>(x, y, z):</b> (%{x:.2f} AU, %{y:.2f} AU, %{z:.2f} AU)<br><b>(r, lon, lat):</b> (%{customdata[0]:.2f} AU, %{customdata[2]:.2f}°, %{customdata[1]:.2f}°)<extra>" 
+                         + sc + "</extra>", text=now_time_str, legendgroup = legendgroup),
             
 
     return trace
@@ -1315,9 +1394,9 @@ def sphere2cart(r,lat,lon):
     z = r * np.cos( lat )
     return (x, y,z)
 
-def interpolate_points(point1, point2, num_points):
-    # Generate an array of linearly spaced values between 0 and 1
-    t_values = np.linspace(0, 1, num_points)
+def interpolate_points(point1, point2, num_points, multiplicator=1):
+    # Generate an array of linearly spaced values between 0 and multiplicator
+    t_values = np.linspace(0, multiplicator, num_points)
 
     # Use linear interpolation to find points along the line
     interpolated_points = (1 - t_values)[:, np.newaxis] * point1 + t_values[:, np.newaxis] * point2
@@ -1606,11 +1685,11 @@ def load_fit(name, graph):
 
     
     # Calculate statistics
-    mean_values = resdf.mean()
-    std_values = resdf.std()
+    mean_values = np.mean(resdf, axis=0)
+    std_values = np.std(resdf, axis=0)
     median_values = resdf.median()
-    min_values = resdf.min()
-    max_values = resdf.max()
+    min_values = np.min(resdf, axis=0)
+    max_values = np.max(resdf, axis=0)
     q1_values = resdf.quantile(0.25)
     q3_values = resdf.quantile(0.75)
     skewness_values = resdf.skew()
@@ -1622,7 +1701,7 @@ def load_fit(name, graph):
          kurtosis_values],
         columns=resdf.columns
     )
-    
+
     mean_row['Launch Time'] = t0.strftime("%Y-%m-%d %H:%M")
 
     
