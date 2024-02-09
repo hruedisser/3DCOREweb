@@ -36,6 +36,66 @@ processes = []
 import os  
 from PIL import Image
 
+def generate_figures_and_data(t_data, filtered_points, model_obj, lineofsightvector, lineofsightnorm, lineofsightunit):
+    lineofsightfig = make_subplots(rows=1, cols=1, specs=[[{"type": "xy"}]], subplot_titles=['Btot as measured by synthetic Spacecraft along the Line of Sight in HEEQ'])
+    lineofsightfig.update_yaxes(title_text='B [nT]', row=1, col=1)
+
+    lineofsightfigx = make_subplots(rows=1, cols=1, specs=[[{"type": "xy"}]], subplot_titles=['Bx as measured by synthetic Spacecraft along the Line of Sight in HEEQ'])
+    lineofsightfigx.update_yaxes(title_text='B [nT]', row=1, col=1)
+
+    lineofsightfig2 = make_subplots(rows=1, cols=1, specs=[[{"type": "xy"}]], subplot_titles=['|B_parallel| as measured by synthetic Spacecraft along the Line of Sight'])
+    lineofsightfig2.update_yaxes(title_text='|B| [nT]', row=1, col=1)
+
+    lineofsightfig3 = make_subplots(rows=1, cols=1, specs=[[{"type": "xy", "secondary_y": True}]], subplot_titles=['Number of contributing Spacecraft and Summation over Bparallel'])
+    lineofsightfig3.update_yaxes(title_text='|B| [nT]', row=1, col=1)
+
+    total_projected_b = np.zeros(len(t_data))
+    total_contribute = np.zeros(len(t_data))
+
+    for i, synspace in enumerate(filtered_points):
+        pos_array = np.empty((len(t_data), 3))
+        pos_array[:, 0], pos_array[:, 1], pos_array[:, 2] = filtered_points[i][0], filtered_points[i][1], filtered_points[i][2]
+        outa = np.array(model_obj.simulator(t_data, pos_array), dtype=object)
+        outa = np.squeeze(outa[0])
+
+        scalarproduct = np.dot(outa, lineofsightvector)
+        projected_b = scalarproduct / lineofsightnorm
+        b_parallel = projected_b.reshape(-1, 1) * lineofsightunit
+        x_sign = np.sign(b_parallel[:, 0])
+        b_parallel_tot = np.sqrt(np.sum(b_parallel ** 2, axis=1)) * x_sign
+
+        contribute = np.zeros_like(b_parallel_tot)
+        contribute[b_parallel_tot != 0] = 1
+
+        total_projected_b += b_parallel_tot
+        total_contribute += contribute
+
+        outa[outa == 0] = np.nan
+
+        lineofsightfig.add_trace(go.Scatter(x=np.array(t_data), y=np.sqrt(np.sum(outa ** 2, axis=1)), name='Btot_synth_' + str(i)), row=1, col=1)
+
+        lineofsightfigx.add_trace(go.Scatter(x=np.array(t_data), y=outa[:, 0], name='Bx_synth_' + str(i)), row=1, col=1)
+
+        b_parallel[b_parallel == 0] = np.nan
+
+        lineofsightfig2.add_trace(go.Scatter(x=np.array(t_data), y=np.sqrt(np.sum(b_parallel ** 2, axis=1)), name='B_parallel_tot_' + str(i)), row=1, col=1)
+
+    #lineofsightfig.show()
+    #lineofsightfigx.show()
+    #lineofsightfig2.show()
+
+    lineofsightfig3.add_trace(go.Scatter(x=np.array(t_data), y=total_projected_b, name='Sum of B_parallel_synth'), row=1, col=1)
+    lineofsightfig3.add_trace(go.Scatter(x=np.array(t_data), y=total_contribute, name='Number of measuring spacecraft'), row=1, col=1, secondary_y=True)
+    lineofsightfig3.update_layout(yaxis=dict(title='Sum of B_parallel_synth [unit]', side='left'), yaxis2=dict(title='Number of measuring spacecraft [unit]', overlaying='y', side='right'))
+    #lineofsightfig3.show()
+
+    lineofsightfig4 = make_subplots(rows=1, cols=1, specs=[[{"type": "xy"}]], subplot_titles=['Average B_parallel per measuring spacecraft'])
+    lineofsightfig4.update_yaxes(title_text='|B| [nT]', row=1, col=1)
+    lineofsightfig4.add_trace(go.Scatter(x=np.array(t_data), y=total_projected_b / total_contribute, name='Sum of B_parallel_synth'), row=1, col=1)
+    #lineofsightfig4.show()
+
+    return lineofsightfig, lineofsightfigx, lineofsightfig2, lineofsightfig3, lineofsightfig4, total_projected_b, total_contribute
+
 def ropechecker(iparams):
     paramlist = []
 
@@ -142,10 +202,10 @@ def ropeplotter(modelstatevars, timeslide):
             ]
     else:
         fluxtypes = [
-            ["ESW","",""], # RH-1
-            ["ENW","",""], # RH-2
-            ["WSE","",""], # LH-1
-            ["WNE","",""] # LH-2
+            ["WNE","",""], # RH-1
+            ["ESW","",""], # RH-2
+            ["ENW","",""], # LH-1
+            ["WSE","",""] # LH-2
             ]
     
     names = ['Br', 'Bt', 'Bn']

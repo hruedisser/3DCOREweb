@@ -376,7 +376,11 @@ def check_animation(pos_array, results, plottheme, graph, reference_frame, rinpu
                 if scopt == "SYN":
                     #try:
                     #print(timeslider)
-                    x,y,z = pos_array[60*int(timeslider)] #sphere2cart(float(rinput), np.deg2rad(-float(latput)+90), np.deg2rad(float(lonput)))
+
+                    resolution_t = t_data[1] - t_data[0]
+                    factors = int(60/resolution_t.total_seconds()*60)
+
+                    x,y,z = pos_array[factors*int(timeslider)] #sphere2cart(float(rinput), np.deg2rad(-float(latput)+90), np.deg2rad(float(lonput)))
                     fig.add_trace(
                         go.Scatter3d(
                             x=[x], y=[y], z=[z],
