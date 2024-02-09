@@ -380,7 +380,11 @@ def check_animation(pos_array, results, plottheme, graph, reference_frame, rinpu
                     resolution_t = t_data[1] - t_data[0]
                     factors = int(60/resolution_t.total_seconds()*60)
 
-                    x,y,z = pos_array[factors*int(timeslider)] #sphere2cart(float(rinput), np.deg2rad(-float(latput)+90), np.deg2rad(float(lonput)))
+                    try:
+                        x,y,z = pos_array[factors*int(timeslider)] #sphere2cart(float(rinput), np.deg2rad(-float(latput)+90), np.deg2rad(float(lonput)))
+                    except TypeError:
+                        x,y,z = graph['pos_data'][0][0],graph['pos_data'][0][1],graph['pos_data'][0][2]
+                    
                     fig.add_trace(
                         go.Scatter3d(
                             x=[x], y=[y], z=[z],
@@ -397,19 +401,20 @@ def check_animation(pos_array, results, plottheme, graph, reference_frame, rinpu
                         ), row=posrow, col=1)
                     
 
-                    fig.add_trace(
-                        go.Scatter3d(
-                            x=pos_array[:,0], y=pos_array[:,1], z=pos_array[:,2],
-                            mode='lines', 
-                            name="SYN",
-                            #customdata=np.vstack((rinput, latput, lonput)).T,
-                            showlegend=False,
-                            #legendgroup = '1',
-                            #hovertemplate="<b>(x, y, z):</b> (%{x:.2f} AU, %{y:.2f} AU, %{z:.2f} AU)<br><b>(r, lon, lat):</b> (%{customdata[0]:.2f} AU, %{customdata[2]:.2f}°, %{customdata[1]:.2f}°)<extra>" 
-                         #+ scopt + "</extra>"
-                        ), row=posrow, col=1)
-                    #except:
-                     #   pass
+                    try:
+                        fig.add_trace(
+                            go.Scatter3d(
+                                x=pos_array[:,0], y=pos_array[:,1], z=pos_array[:,2],
+                                mode='lines', 
+                                name="SYN",
+                                #customdata=np.vstack((rinput, latput, lonput)).T,
+                                showlegend=False,
+                                #legendgroup = '1',
+                                #hovertemplate="<b>(x, y, z):</b> (%{x:.2f} AU, %{y:.2f} AU, %{z:.2f} AU)<br><b>(r, lon, lat):</b> (%{customdata[0]:.2f} AU, %{customdata[2]:.2f}°, %{customdata[1]:.2f}°)<extra>" 
+                            #+ scopt + "</extra>"
+                            ), row=posrow, col=1)
+                    except:
+                        pass
 
                 else:                    
                     traces = process_coordinates(posstore[scopt]['data']['data'], roundedlaunch, roundedlaunch + datetime.timedelta(hours=timeslider), posstore[scopt]['data']['color'], scopt, legendgroup='1')
@@ -619,6 +624,7 @@ def check_animation(pos_array, results, plottheme, graph, reference_frame, rinpu
             (ed[0][2][0][:, 2], None, 'blue'),
             (ed[0][2][1][:, 2], 'rgba(0, 0, 255, 0.15)', 'blue')
         ]            
+       
 
         for i in range(0, len(shadow_data), 2):
             y1, fill_color, line_color = shadow_data[i]
@@ -735,7 +741,7 @@ def check_animation(pos_array, results, plottheme, graph, reference_frame, rinpu
             if sc == "SYN":
                 try:
                     outa = np.array(model_obj.simulator(graph['t_data'], pos_array), dtype=object)
-                    
+                    print(graph['t_data'])
                     
                 
                 except Exception as e:
@@ -754,8 +760,14 @@ def check_animation(pos_array, results, plottheme, graph, reference_frame, rinpu
             
             if sc == "SYN":
                 if reference_frame == "RTN":
-                    rtn_bx, rtn_by, rtn_bz = hc.convert_HEEQ_to_RTN_mag(pos_array[:, 0], pos_array[:, 1], pos_array[:, 2], outa[:, 0],outa[:, 1],outa[:, 2])
-                    outa[:, 0],outa[:, 1],outa[:, 2] = rtn_bx, rtn_by, rtn_bz
+                    try:
+                        rtn_bx, rtn_by, rtn_bz = hc.convert_HEEQ_to_RTN_mag(pos_array[:, 0], pos_array[:, 1], pos_array[:, 2], outa[:, 0],outa[:, 1],outa[:, 2])
+                        outa[:, 0],outa[:, 1],outa[:, 2] = rtn_bx, rtn_by, rtn_bz
+                    except TypeError:
+                        x,y,z = hc.separate_components(graph['pos_data'])
+                    #print(x,y,z)
+                        rtn_bx, rtn_by, rtn_bz = hc.convert_HEEQ_to_RTN_mag(x,y,z, outa[:, 0],outa[:, 1],outa[:, 2])
+                        outa[:, 0],outa[:, 1],outa[:, 2] = rtn_bx, rtn_by, rtn_bz
             else:
                 if reference_frame == "RTN":
                     x,y,z = hc.separate_components(graph['pos_data'])
@@ -838,15 +850,15 @@ def check_animation(pos_array, results, plottheme, graph, reference_frame, rinpu
         max_b_data = np.max(b_data)
         y_range_padding = 10  # Adjust this value as needed
 
-        if sc == "SYN":
-            # Sample a subset of time steps for tick labels
-            max_ticks = 10  # Adjust the number of ticks as needed
-            sampled_ticks = graph['t_data'][::len(graph['t_data']) // max_ticks]
+        # if sc == "SYN":
+        #     # Sample a subset of time steps for tick labels
+        #     max_ticks = 10  # Adjust the number of ticks as needed
+        #     sampled_ticks = graph['t_data'][::len(graph['t_data']) // max_ticks]
 
-            # Update x-axis tick labels
-            tick_labels = [("+ " + str(int((i - roundedlaunch).total_seconds()/3600)) + " h") for i in sampled_ticks]
+        #     # Update x-axis tick labels
+        #     tick_labels = [("+ " + str(int((i - roundedlaunch).total_seconds()/3600)) + " h") for i in sampled_ticks]
 
-            fig.update_xaxes(tickvals=sampled_ticks, ticktext=tick_labels, row=row, col=1)
+        #     fig.update_xaxes(tickvals=sampled_ticks, ticktext=tick_labels, row=row, col=1)
 
 
 
