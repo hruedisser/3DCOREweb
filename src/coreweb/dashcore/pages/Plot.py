@@ -574,15 +574,24 @@ def update_posfig(posstore, rinput, lonput, latput, nclicks, togglerange, timesl
             fig.add_trace(earth_trace)
                         
         if "mercury" in bodyoptions:
-            fig.add_trace(plot_body3d(graph['bodydata']['Mercury']['data'], roundedlaunch + datetime.timedelta(hours=timeslider), 'slategrey', 'Mercury')[0])
-            
+            try:
+                print(type(graph['bodydata']['Mercury']['data']))
+                fig.add_trace(plot_body3d(graph['bodydata']['Mercury']['data'], roundedlaunch + datetime.timedelta(hours=timeslider), 'slategrey', 'Mercury')[0])
+            except:
+                pass
             
         if "venus" in bodyoptions:
-            fig.add_trace(plot_body3d(graph['bodydata']['Venus']['data'], roundedlaunch + datetime.timedelta(hours=timeslider), 'darkgoldenrod', 'Venus')[0])
-            
+            try:
+                fig.add_trace(plot_body3d(graph['bodydata']['Venus']['data'], roundedlaunch + datetime.timedelta(hours=timeslider), 'darkgoldenrod', 'Venus')[0])
+            except:
+                pass
+
         if "mars" in bodyoptions:
-            fig.add_trace(plot_body3d(graph['bodydata']['Mars']['data'], roundedlaunch + datetime.timedelta(hours=timeslider), 'red', 'Mars')[0])
-            
+            try:
+                fig.add_trace(plot_body3d(graph['bodydata']['Mars']['data'], roundedlaunch + datetime.timedelta(hours=timeslider), 'red', 'Mars')[0])
+            except:
+                pass
+
         if spacecraftoptions is not None:
             for scopt in spacecraftoptions:
                 if scopt == "SYN":
@@ -606,14 +615,22 @@ def update_posfig(posstore, rinput, lonput, latput, nclicks, togglerange, timesl
                         pass
                     
                 else:                    
-                    traces = process_coordinates(posstore[scopt]['data']['data'], roundedlaunch, roundedlaunch + datetime.timedelta(hours=timeslider), posstore[scopt]['data']['color'], scopt)
+                    try:
+                        traces = process_coordinates(posstore[scopt]['data']['data'], roundedlaunch, roundedlaunch + datetime.timedelta(hours=timeslider), posstore[scopt]['data']['color'], scopt)
+                    except:
+                        pass
 
                     if "trajectories" in plotoptions:
-                        fig.add_trace(traces[0])
-                        fig.add_trace(traces[1])
+                        try:
+                            fig.add_trace(traces[0])
+                            fig.add_trace(traces[1])
+                        except:
+                            pass
 
-                    fig.add_trace(traces[2])
-
+                    try:
+                        fig.add_trace(traces[2])
+                    except:
+                        pass
 
         if "longgrid" in plotoptions:
             # Create data for concentrical circles

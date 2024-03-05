@@ -136,6 +136,13 @@ def check_animation(pos_array, results, plottheme, graph, reference_frame, rinpu
     line_color = 'white'
     line_colors = ['red','green','blue','black']
 
+    if "dotted" in plotoptions:
+        dotted = "dot"
+    elif "dashed" in plotoptions:
+        dotted = "dash"
+    else:
+        dotted = None
+
     sc = "SYN"
                 
     if "Catalog Event" in plotoptions:
@@ -439,7 +446,7 @@ def check_animation(pos_array, results, plottheme, graph, reference_frame, rinpu
                 circle_trace = go.Scatter3d(
                     x=x, y=y, z=z,
                     mode='lines',
-                    line=dict(color='gray'),
+                    line=dict(color=framecolor, dash=dotted),
                     showlegend=False,
                     hovertemplate = None, 
                     hoverinfo = "skip", 
@@ -447,8 +454,8 @@ def check_animation(pos_array, results, plottheme, graph, reference_frame, rinpu
                 fig.add_trace(circle_trace, row=posrow, col=1)
 
                 # Add labels for the circles next to the line connecting Sun and Earth
-                label_x = r  # x-coordinate for label position
-                label_y = 0  # y-coordinate for label position
+                label_x = 0 #r  # x-coordinate for label position
+                label_y = -r #0  # y-coordinate for label position
                 label_trace = go.Scatter3d(
                     x=[label_x], y=[label_y], z=[0],
                     mode='text',
@@ -476,7 +483,7 @@ def check_animation(pos_array, results, plottheme, graph, reference_frame, rinpu
                 au_line = go.Scatter3d(
                     x=x, y=y, z=z,
                     mode='lines',
-                    line=dict(color=framecolor),
+                    line=dict(color=framecolor, dash=dotted),
                     name=f'{angle_degrees}°',
                     showlegend=False,
                     hovertemplate = None, 
@@ -511,7 +518,7 @@ def check_animation(pos_array, results, plottheme, graph, reference_frame, rinpu
                 circle_trace = go.Scatter3d(
                     x=x, y=y, z=z,
                     mode='lines',
-                    line=dict(color=framecolor),
+                    line=dict(color=framecolor, dash=dotted),
                     showlegend=False,
                     hovertemplate = None, 
                     hoverinfo = "skip", 
@@ -544,7 +551,7 @@ def check_animation(pos_array, results, plottheme, graph, reference_frame, rinpu
                 au_line = go.Scatter3d(
                     x=x, y=y, z=z,
                     mode='lines',
-                    line=dict(color=framecolor),
+                    line=dict(color=framecolor, dash=dotted),
                     name=f'{angle_degrees}°',
                     showlegend=False,
                     hovertemplate = None, 
@@ -877,8 +884,11 @@ def check_animation(pos_array, results, plottheme, graph, reference_frame, rinpu
     if insitu:
         height = height + 350
     
-    gapwidth = 540 + 5 * len(bodyoptions) + 5 * len(spacecraftoptions)
-    
+    if spacecraftoptions is not None:
+        gapwidth = 540 + 5 * len(bodyoptions) + 5 * len(spacecraftoptions)
+    else:
+        gapwidth = 540 + 5 * len(bodyoptions) 
+
     if camera != 'auto':
         
         zeropoint = [0,206.62,90]

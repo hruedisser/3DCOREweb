@@ -377,7 +377,24 @@ def plot_body3d(data_list, nowdate, color, sc, legendgroup = None):
     '''
     plots the current 3d position for a body
     '''
-    data = np.array(data_list, dtype=[('time', 'O'), ('r', '<f8'), ('lon', '<f8'), ('lat', '<f8'), ('x', '<f8'), ('y', '<f8'), ('z', '<f8')])
+    
+    try:
+        data = np.array(data_list, dtype=[('time', 'O'), ('r', '<f8'), ('lon', '<f8'), ('lat', '<f8'), ('x', '<f8'), ('y', '<f8'), ('z', '<f8')])
+    except:
+        # Convert string dates to datetime objects
+        try:
+            # Define the dtype for the structured array
+            dtype = [('time', 'O'), ('r', '<f8'), ('lon', '<f8'), ('lat', '<f8'), ('x', '<f8'), ('y', '<f8'), ('z', '<f8')]
+
+            # Create an empty structured array
+            data = np.empty(len(data_list), dtype=dtype)
+
+            # Populate the structured array
+            for i, row in enumerate(data_list):
+                data[i] = tuple(row)
+        except Exception as e:
+            print(e)
+
     df_columns = ['time', 'r', 'lon', 'lat', 'x', 'y', 'z']
     df = pd.DataFrame(data, columns=df_columns)
     
@@ -429,7 +446,25 @@ def process_coordinates(data_list, date, nowdate, color, sc, legendgroup = None)
     plot spacecraft 3d position from previously loaded data
     '''
     
-    data = np.array(data_list, dtype=[('time', 'O'), ('r', '<f8'), ('lon', '<f8'), ('lat', '<f8'), ('x', '<f8'), ('y', '<f8'), ('z', '<f8')])
+    try:
+        data = np.array(data_list, dtype=[('time', 'O'), ('r', '<f8'), ('lon', '<f8'), ('lat', '<f8'), ('x', '<f8'), ('y', '<f8'), ('z', '<f8')])
+    except:
+        # Convert string dates to datetime objects
+        try:
+            # Define the dtype for the structured array
+            dtype = [('time', 'O'), ('r', '<f8'), ('lon', '<f8'), ('lat', '<f8'), ('x', '<f8'), ('y', '<f8'), ('z', '<f8')]
+
+            # Create an empty structured array
+            data = np.empty(len(data_list), dtype=dtype)
+
+            # Populate the structured array
+            for i, row in enumerate(data_list):
+                data[i] = tuple(row)
+        except Exception as e:
+            print(e)
+
+    
+    
     df_columns = ['time', 'r', 'lon', 'lat', 'x', 'y', 'z']
     df = pd.DataFrame(data, columns=df_columns)
         
@@ -755,36 +790,53 @@ def get_rt_data(sc, insitubegin, insituend):
     x = data['x'] 
     y = data['y'] 
     z = data['z'] 
-    
-    insitubegin = insitubegin.replace(tzinfo=None)
-    insituend = insituend.replace(tzinfo=None)
-    
-    # Ensure time ends with insituend
-    while time[-1] < insituend:
-        #print(time[-1])
-        #print(insituend)
 
-        time = np.append(time, time[-1]+ (time[-1]-time[-2]))
-        bx = np.append(bx, np.nan)
-        by = np.append(by, np.nan)
-        bz = np.append(bz, np.nan)
-        x = np.append(x, 1.)
-        y = np.append(y, 0.)
-        z = np.append(z, 0.)
+    # Filter data based on insitubegin
+    begin_index = np.where(time >= insitubegin + datetime.timedelta(hours=24))[0][0]
+    time = time[begin_index:]
+    bx = bx[begin_index:]
+    by = by[begin_index:]
+    bz = bz[begin_index:]
+    x = x[begin_index:]
+    y = y[begin_index:]
+    z = z[begin_index:]
+
+    # insitubegin = insitubegin.replace(tzinfo=None)
+    # insituend = insituend.replace(tzinfo=None)
     
-    # Find indices within the specified time range
-    mask = (time >= insitubegin) & (time <= insituend)
+    # # Ensure time ends with insituend
+    # while time[-1] < insituend:
+    #     #print(time[-1])
+    #     #print(insituend)
+
+    #     time = np.append(time, time[-1]+ (time[-1]-time[-2]))
+    #     bx = np.append(bx, np.nan)
+    #     by = np.append(by, np.nan)
+    #     bz = np.append(bz, np.nan)
+    #     x = np.append(x, 1.)
+    #     y = np.append(y, 0.)
+    #     z = np.append(z, 0.)
+    
+    # # Find indices within the specified time range
+    # mask = (time >= insitubegin) & (time <= insituend)
 
     #print(x)
     #print(time)
     
-    heeq_bx, heeq_by, heeq_bz = hc.convert_RTN_to_HEEQ_mag(x[mask], y[mask], z[mask], bx[mask], by[mask], bz[mask])
+    # heeq_bx, heeq_by, heeq_bz = hc.convert_RTN_to_HEEQ_mag(x[mask], y[mask], z[mask], bx[mask], by[mask], bz[mask])
+    # b_HEEQ = np.column_stack((heeq_bx, heeq_by, heeq_bz))
+    
+    # dt = time[mask]
+    # b_RTN = np.column_stack((bx[mask], by[mask], bz[mask]))
+    # pos = np.column_stack((x[mask], y[mask], z[mask]))
+    
+    heeq_bx, heeq_by, heeq_bz = hc.convert_RTN_to_HEEQ_mag(x, y, z, bx, by, bz)
     b_HEEQ = np.column_stack((heeq_bx, heeq_by, heeq_bz))
     
-    dt = time[mask]
-    b_RTN = np.column_stack((bx[mask], by[mask], bz[mask]))
-    pos = np.column_stack((x[mask], y[mask], z[mask]))
-    
+    dt = time
+    b_RTN = np.column_stack((bx, by, bz))
+    pos = np.column_stack((x, y, z))
+
     return b_HEEQ, b_RTN, dt, pos
 
 @functools.lru_cache()    
@@ -794,10 +846,9 @@ def get_uploaddata(filename):
     used to generate the insitudata for the graphstore from upload (app.py)
     '''
     uploadpath = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "data/uploaded"))
-    
-    
+
     data = p.load(open(uploadpath + '/' + filename, "rb" ) )    
-        
+
     # Extract relevant fields
     time = data['time']
     bx = data['br']

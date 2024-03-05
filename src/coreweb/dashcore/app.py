@@ -855,7 +855,7 @@ def generate_graphstore(infodata, reference_frame, posstore, long_per_hour = Non
 
     if sc == "SYN":
         insitubegin = begin #- datetime.timedelta(hours=24)
-        insituend = end + datetime.timedelta(hours=100)
+        insituend = end + datetime.timedelta(hours=200)
     else:
         
         insitubegin = begin - datetime.timedelta(hours=24)

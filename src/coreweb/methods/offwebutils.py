@@ -17,7 +17,7 @@ from heliosat.util import sanitize_dt
 
 import time
 
-from coreweb.dashcore.utils.utils import cart2sphere, sphere2cart, getbodytraces, get_posdata, load_pos_data, round_to_hour_or_half, get_iparams_live, plot_body3d,process_coordinates, load_body_data, load_cat_id, get_archivedata, get_insitudata
+from coreweb.dashcore.utils.utils import get_rt_data, cart2sphere, sphere2cart, getbodytraces, get_posdata, load_pos_data, round_to_hour_or_half, get_iparams_live, plot_body3d,process_coordinates, load_body_data, load_cat_id, get_archivedata, get_insitudata
 import coreweb.dashcore.utils.heliocats as hc
 from coreweb.dashcore.utils.plotting import *
 
@@ -498,7 +498,7 @@ def ropeplotter(modelstatevars, timeslide):
 
     return figs
 
-def get_eventinfo(cat_event, purelysyn = False, custom = False):
+def get_eventinfo(cat_event, purelysyn = False, custom = False, loaded = False):
 
 
     if custom == True:
@@ -518,12 +518,18 @@ def get_eventinfo(cat_event, purelysyn = False, custom = False):
         input_datetime_formatted = extracted_datetime.strftime('%Y-%m-%dT%H:%M:%S')
         endtime_formatted = extracted_datetime.strftime('%Y-%m-%dT%H:%M:%S')
 
+        sc = cat_event.split('_')[1]
+
+        if sc == 'NOAA':
+            sc = 'NOAA_RTSW'
+
+
         eventinfo = {"processday": [input_datetime_formatted],
             "begin": [input_datetime_formatted],
             "end": [endtime_formatted],
-            "sc": ["NOAA_RTSW"],
+            "sc": [sc],
             "id": [cat_event],
-            "loaded": False,
+            "loaded": loaded,
             "changed": True
            }
 
@@ -539,7 +545,7 @@ def get_eventinfo(cat_event, purelysyn = False, custom = False):
             "end": [endtime_formatted],
             "sc": ['SYN'],
             "id": [cat_event],
-            "loaded": False,
+            "loaded": loaded,
             "changed": True
            }
         
@@ -569,7 +575,7 @@ def get_eventinfo(cat_event, purelysyn = False, custom = False):
                 "end": [endtime_formatted],
                 "sc": [sc.iloc[i[0]]],
                 "id": [idds.iloc[i[0]]],
-                "loaded": False,
+                "loaded": loaded,
                 "changed": True
             }
     return eventinfo
@@ -579,68 +585,100 @@ def get_uploaddata(data, filename):
     '''
     used to generate the insitudata for the graphstore from upload (app.py)
     '''
-    # Extract relevant fields
-    time = data['time']
-    bx = data['br']
-    by = data['bt']
-    bz = data['bn']
-    
-    if filename.startswith('so'):
-        sc = "SOLO"
-    elif filename.startswith('psp'):
-        sc = "PSP"
-    elif filename.startswith('st'):
-        sc = "STEREO-A"
-    elif filename.startswith('bepi'):
-        sc = "BEPI"
-    elif filename.startswith('pa'):
-        sc = "SYN"
-        
-    # Check for archive path
-    archivepath = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "dashcore/data/archive"))
-    file = '/positions_psp_solo_sta_bepi_wind_planets_HEEQ_10min_degrees.p'
-    try:
-        datafile=p.load(open(archivepath + file, "rb" ) ) 
-    except:
+
+    if data == {}:
         try:
-            print("No Archive available, searching Helioforecast")
-            url = 'https://helioforecast.space/static/sync/insitu_python/positions_now.p'
-            file = urllib.request.urlopen(url)
-            datafile = p.load(file)
+            data = np.array(p.load(open(filename, "rb" ))[0], dtype=[('time', 'O'), ('bx', '<f8'), ('by', '<f8'), ('bz', '<f8'), ('bt', '<f8'), ('x', '<f8'), ('y', '<f8'), ('z', '<f8'), ('r', '<f8'), ('lat', '<f8'), ('lon', '<f8')])
         except:
-            datafile=None
-            
-            
-        
-    if filename.startswith('pa'):
-        # Calculate the desired length
+            data = np.array(p.load(open(filename, "rb" ))[0], dtype=[('time', 'O'), ('bx', '<f8'), ('by', '<f8'), ('bz', '<f8'), ('bt', '<f8'), ('vx', '<f8'), ('vy', '<f8'), ('vz', '<f8'), ('vt', '<f8'), ('np', '<f8'), ('tp', '<f8'), ('x', '<f8'), ('y', '<f8'), ('z', '<f8'), ('r', '<f8'), ('lat', '<f8'), ('lon', '<f8')])
+    
+
+        time = data['time']
+        bx = data['bx']
+        by = data['by']
+        bz = data['bz']
+
         desired_length = len(time)
-        
-        parts = filename.split('_')
-        distance = int(parts[3].split('.')[0])*0.00465047
-        direction = int(parts[1])
+        AUkm=149597870.7   
 
         # Create an array with NaN values
         posdata = np.empty((desired_length, 3))
 
-        posdata[:, 0], posdata[:, 1], posdata[:, 2] = sphere2cart(distance, np.deg2rad(-0+90), np.deg2rad(direction))
-        
-        heeq_bx, heeq_by, heeq_bz = hc.convert_RTN_to_HEEQ_mag( posdata[:, 0], posdata[:, 1],  posdata[:, 2], bx, by, bz)
+        posdata[:, 0], posdata[:, 1], posdata[:, 2] = data['x']/AUkm, data['y']/AUkm, data['z']/AUkm
+
+        heeq_bx, heeq_by, heeq_bz = hc.convert_RTN_to_HEEQ_mag(posdata[:, 0], posdata[:, 1],  posdata[:, 2], bx, by, bz)
         b_HEEQ = np.column_stack((heeq_bx, heeq_by, heeq_bz))
         
         dt = time
         b_RTN = np.column_stack((bx, by, bz))
         pos = np.column_stack((posdata[:, 0], posdata[:, 1],  posdata[:, 2]))
-        
+
+
+
     else:
-        posdata = getarchivecoords(sc, begin= time[0]-datetime.timedelta(minutes = 10), end = time[-1], arrays =  '10T', datafile = datafile)
-    
-        heeq_bx, heeq_by, heeq_bz = hc.convert_RTN_to_HEEQ_mag(posdata.x,posdata.y, posdata.z, bx, by, bz)
-        b_HEEQ = np.column_stack((heeq_bx, heeq_by, heeq_bz))
+
+        # Extract relevant fields
+        time = data['time']
+        bx = data['br']
+        by = data['bt']
+        bz = data['bn']
         
-        dt = time
-        b_RTN = np.column_stack((bx, by, bz))
-        pos = np.column_stack((posdata.x, posdata.y, posdata.z))
+        if filename.startswith('so'):
+            sc = "SOLO"
+        elif filename.startswith('psp'):
+            sc = "PSP"
+        elif filename.startswith('st'):
+            sc = "STEREO-A"
+        elif filename.startswith('bepi'):
+            sc = "BEPI"
+        elif filename.startswith('pa'):
+            sc = "SYN"
+            
+        # Check for archive path
+        archivepath = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "dashcore/data/archive"))
+        file = '/positions_psp_solo_sta_bepi_wind_planets_HEEQ_10min_degrees.p'
+        try:
+            datafile=p.load(open(archivepath + file, "rb" ) ) 
+        except:
+            try:
+                print("No Archive available, searching Helioforecast")
+                url = 'https://helioforecast.space/static/sync/insitu_python/positions_now.p'
+                file = urllib.request.urlopen(url)
+                datafile = p.load(file)
+            except:
+                datafile=None
+                
+                
+            
+        if filename.startswith('pa'):
+            # Calculate the desired length
+            desired_length = len(time)
+            
+            parts = filename.split('_')
+            distance = int(parts[3].split('.')[0])*0.00465047
+            direction = int(parts[1])
+
+            # Create an array with NaN values
+            posdata = np.empty((desired_length, 3))
+
+            posdata[:, 0], posdata[:, 1], posdata[:, 2] = sphere2cart(distance, np.deg2rad(-0+90), np.deg2rad(direction))
+            
+            heeq_bx, heeq_by, heeq_bz = hc.convert_RTN_to_HEEQ_mag( posdata[:, 0], posdata[:, 1],  posdata[:, 2], bx, by, bz)
+            b_HEEQ = np.column_stack((heeq_bx, heeq_by, heeq_bz))
+            
+            dt = time
+            b_RTN = np.column_stack((bx, by, bz))
+            pos = np.column_stack((posdata[:, 0], posdata[:, 1],  posdata[:, 2]))
+            
+        else:
+            posdata = getarchivecoords(sc, begin= time[0]-datetime.timedelta(minutes = 10), end = time[-1], arrays =  '10T', datafile = datafile)
+        
+            heeq_bx, heeq_by, heeq_bz = hc.convert_RTN_to_HEEQ_mag(posdata.x,posdata.y, posdata.z, bx, by, bz)
+            b_HEEQ = np.column_stack((heeq_bx, heeq_by, heeq_bz))
+            
+            dt = time
+            b_RTN = np.column_stack((bx, by, bz))
+            pos = np.column_stack((posdata.x, posdata.y, posdata.z))
                           
     return b_HEEQ, b_RTN, dt, pos
 
@@ -698,6 +736,7 @@ def process_sav(path):
     
     
     return ll, direction, distance, eventinfo
+
 
 
 def generate_graphstore(infodata, reference_frame, rawdata = None):
