@@ -1588,12 +1588,14 @@ def load_fit(name, graph):
     else:
         print('Generating and converting ensembles!')
         # Generate the ensemble data and save it to the file
-        ensemble_HEEQ = generate_ensemble(filepath, graph['t_data'], graph['pos_data'], reference_frame='HEEQ', reference_frame_to='HEEQ', max_index=data['model_obj'].ensemble_size)
-        ensemble_RTN = generate_ensemble(filepath, graph['t_data'], graph['pos_data'], reference_frame='HEEQ', reference_frame_to='RTN', max_index=data['model_obj'].ensemble_size)
+        ensemble_HEEQ, ensemble_HEEQ_data = generate_ensemble(filepath, graph['t_data'], graph['pos_data'], reference_frame='HEEQ', reference_frame_to='HEEQ', max_index=data['model_obj'].ensemble_size)
+        ensemble_RTN, ensemble_RTN_data = generate_ensemble(filepath, graph['t_data'], graph['pos_data'], reference_frame='HEEQ', reference_frame_to='RTN', max_index=data['model_obj'].ensemble_size)
 
         ensemble_data = {
             'ensemble_HEEQ': ensemble_HEEQ,
-            'ensemble_RTN': ensemble_RTN
+            'ensemble_HEEQ_data': ensemble_HEEQ_data,
+            'ensemble_RTN': ensemble_RTN,
+            'ensemble_RTN_data': ensemble_RTN_data
         }
         with open(ensemble_filepath, 'wb') as ensemble_file:
             p.dump(ensemble_data, ensemble_file)
@@ -1983,7 +1985,7 @@ def generate_ensemble(path: str, dt: datetime.datetime, posdata, reference_frame
 
     ensemble_data.append([None, None, (b_s2p, b_s2n), (b_ts2p, b_ts2n)])
         
-    return ensemble_data
+    return ensemble_data, ensemble
 
 
 
