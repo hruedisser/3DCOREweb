@@ -33,6 +33,7 @@ from bs4 import BeautifulSoup
 import heliosat
 
 import coreweb.dashcore.utils.heliocats as hc
+import coreweb.methods.data_frame_transforms as dft
 
 from ...methods.method import BaseMethod
 
@@ -769,7 +770,7 @@ def filter_and_sort_files(file_list, content_list):
 
 
 #@functools.lru_cache()    
-def get_rt_data(sc, insitubegin, insituend):
+def get_rt_data(sc, insitubegin, insituend, plushours):
     '''
     used to load insitudata for the graphstore from helioforecast
     '''
@@ -836,6 +837,20 @@ def get_rt_data(sc, insitubegin, insituend):
     dt = time
     b_RTN = np.column_stack((bx, by, bz))
     pos = np.column_stack((x, y, z))
+
+    if plushours == None:
+        pass
+    else:
+        print('Extending timeframe, padding NaNs, using last known position')
+
+        # Padding NaNs and using the last known position
+        extended_length = len(time) + int(plushours * 60)  # Convert plushours to minutes
+        nan_array = np.full((int(plushours * 60), 3), np.nan)
+        
+        b_HEEQ = np.concatenate((b_HEEQ, nan_array))
+        b_RTN = np.concatenate((b_RTN, nan_array))
+        dt = np.concatenate((dt, np.array([dt[-1] + datetime.timedelta(minutes=i) for i in range(1, int(plushours * 60) + 1)])))
+        pos = np.concatenate((pos, np.tile(pos[-1], (int(plushours * 60), 1))))
 
     return b_HEEQ, b_RTN, dt, pos
 
@@ -1470,7 +1485,7 @@ def get_catevents(sc, year, month, day):
     Returns events from helioforecast.space filtered by year, month, day, and sc.
     Used during startup.
     '''
-    url = 'https://helioforecast.space/static/sync/icmecat/HELIO4CAST_ICMECAT_v21.csv'
+    url = 'https://helioforecast.space/static/sync/icmecat/HELIO4CAST_ICMECAT_v22.csv'
     icmecat = pd.read_csv(url)
     starttime = icmecat.loc[:, 'icme_start_time']
     idd = icmecat.loc[:, 'icmecat_id']
@@ -1505,7 +1520,7 @@ def load_cat_id(idd):
     '''
     Returns from helioforecast.space the event with a given ID.
     '''
-    url='https://helioforecast.space/static/sync/icmecat/HELIO4CAST_ICMECAT_v21.csv'
+    url='https://helioforecast.space/static/sync/icmecat/HELIO4CAST_ICMECAT_v22.csv'
     icmecat=pd.read_csv(url)
     starttime = icmecat.loc[:,'icme_start_time']
     idds = icmecat.loc[:,'icmecat_id']
@@ -1525,7 +1540,7 @@ def load_cat(date):
     '''
     Returns from helioforecast.space the event list for a given day
     '''
-    url='https://helioforecast.space/static/sync/icmecat/HELIO4CAST_ICMECAT_v21.csv'
+    url='https://helioforecast.space/static/sync/icmecat/HELIO4CAST_ICMECAT_v22.csv'
     icmecat=pd.read_csv(url)
     starttime = icmecat.loc[:,'icme_start_time']
     idd = icmecat.loc[:,'icmecat_id']
@@ -1937,8 +1952,12 @@ def generate_ensemble(path: str, dt: datetime.datetime, posdata, reference_frame
     ensemble_data = []
     
 
-    ftobj = BaseMethod(path) # load Fitter from path
-    
+    try:
+        ftobj = BaseMethod(path) # load Fitter from path
+    except:
+        ftobj = BaseMethod(path.replace('_ensembles_GSM', ''))
+
+
     # simulate flux ropes using iparams from loaded fitter
     ensemble = np.squeeze(np.array(ftobj.model_obj.simulator(dt, posdata)[0]))
     #print(dt)
@@ -1965,9 +1984,16 @@ def generate_ensemble(path: str, dt: datetime.datetime, posdata, reference_frame
             bx,by,bz = hc.separate_components(ensemble[:, k, :])
 
             rtn_bx, rtn_by, rtn_bz = hc.convert_HEEQ_to_RTN_mag(x,y,z, bx,by,bz, printer = False)
-            ensemble[:, k, :] = hc.combine_components(rtn_bx, rtn_by, rtn_bz)
+            
+            if reference_frame_to == "RTN":
+                ensemble[:, k, :] = hc.combine_components(rtn_bx, rtn_by, rtn_bz)
+
+            if reference_frame_to == "GSM":
+                gsm_bx, gsm_by, gsm_bz = dft.RTN_to_GSM(x, y, z, rtn_bx,rtn_by,rtn_bz, dt)
+                ensemble[:, k, :] = hc.combine_components(gsm_bx, gsm_by, gsm_bz)
         # Print a new line after progress is complete
         print()
+
 
     ensemble[np.where(ensemble == 0)] = np.nan
 

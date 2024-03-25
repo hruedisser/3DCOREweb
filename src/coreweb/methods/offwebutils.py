@@ -19,6 +19,7 @@ import time
 
 from coreweb.dashcore.utils.utils import get_rt_data, cart2sphere, sphere2cart, getbodytraces, get_posdata, load_pos_data, round_to_hour_or_half, get_iparams_live, plot_body3d,process_coordinates, load_body_data, load_cat_id, get_archivedata, get_insitudata
 import coreweb.dashcore.utils.heliocats as hc
+import coreweb.dashcore.utils.twist_plot as tp
 from coreweb.dashcore.utils.plotting import *
 
 import coreweb
@@ -35,6 +36,224 @@ processes = []
         
 import os  
 from PIL import Image
+
+import plotly.io as pio
+
+import pickle
+
+def signaturecheckfull(many_lats, many_lons, model_obj, rinput, savedir, checkanimany, graphstore, t_launch):
+    fontsize = 16  # Define the fontsize variable
+    gridline_color = 'rgba(0, 0, 0, 0.5)'  # Define the color of gridlines
+    trace_width = 4  # Define the width of traces
+    
+    onward = 2800 
+    toward = -500 if len(many_lons) > 4 else -3500
+
+    names = ['Br', 'Bt', 'Bn', 'Btot']
+    line_colors =['#c20078','#f97306', '#069af3', '#000000']
+    eventshade = "LightSalmon"
+    framecolor = 'rgba(100, 100, 100, 0.8)'
+
+    total_height = len(many_lats) * 200  
+    total_width = len(many_lons) * 400
+
+    subplot_data = {}
+
+    # Create a new figure for each longitude with increased height
+    fig = make_subplots(rows=len(many_lats), cols=len(many_lons), shared_xaxes=True, subplot_titles=[f'Longitude: {lon}° <br> ' for lon in many_lons],
+                        vertical_spacing=0.04,
+                        horizontal_spacing=0.04, row_heights=[total_height // len(many_lats)] * len(many_lats))
+    
+    fig.update_annotations(font_size=fontsize)  # Update annotation fontsize
+    # Update layout for all subplots to plotly_white theme
+    fig.update_layout(
+        template='plotly_white',
+        xaxis=dict(
+            tickfont=dict(size=fontsize),
+            gridcolor=gridline_color,
+            zerolinecolor=gridline_color 
+        ),
+        yaxis=dict(
+            tickfont=dict(size=fontsize),
+            gridcolor=gridline_color,
+            zerolinecolor=gridline_color 
+        )
+    )
+
+    for k, lat in enumerate(many_lats):
+        fig.update_yaxes(title_text=f"Latitude: {lat}° <br> <br> B [nT]", row=k + 1, col=1, title_font=dict(size=fontsize))  # Update yaxis title fontsize
+
+    for j, lon in enumerate(many_lons):
+        for k, lat in enumerate(many_lats):
+            showlegend = (k == 0 and j == 0)
+            
+            x,y,z = sphere2cart(float(rinput), np.deg2rad(-float(lat)+90), np.deg2rad(float(lon)))
+
+            # Update subplot_data dictionary with data for each subplot
+            subplot_key = f'Longitude: {lon}°, Latitude: {lat}°'
+            subplot_data[subplot_key] = {
+                'x': [],
+                'y': [[] for _ in range(4)]  # 4 lists for 4 traces
+            }
+
+            # Add traces for each latitude as subplots
+            pos_array = get_longmove_array(0, rinput, lon, lat, graphstore)
+            outa = np.array(model_obj.simulator(graphstore['t_data'], pos_array), dtype=object)
+            outa = np.squeeze(outa[0])
+            rtn_bx, rtn_by, rtn_bz = hc.convert_HEEQ_to_RTN_mag(pos_array[:, 0], pos_array[:, 1], pos_array[:, 2], outa[:, 0], outa[:, 1], outa[:, 2])
+            outa[:, 0], outa[:, 1], outa[:, 2] = rtn_bx, rtn_by, rtn_bz
+            outa[outa==0] = np.nan
+
+            # Update subplot_data with x and y data for each trace
+            subplot_data[subplot_key]['x'] = graphstore['t_data'][onward:toward]
+            subplot_data[subplot_key]['y'][0] = outa[:, 0][onward:toward]
+            subplot_data[subplot_key]['y'][1] = outa[:, 1][onward:toward]
+            subplot_data[subplot_key]['y'][2] = outa[:, 2][onward:toward]
+            subplot_data[subplot_key]['y'][3] = np.sqrt(np.sum(outa**2, axis=1))[onward:toward]
+
+            # Add traces
+            for i in range(4):
+                fig.add_trace(go.Scatter(x=subplot_data[subplot_key]['x'], y=subplot_data[subplot_key]['y'][i],
+                                         line=dict(color=line_colors[i], width=trace_width), name=names[i], showlegend=showlegend), row=k+1, col=j+1)
+
+            # Update layout
+            fig.update_yaxes(row=k+1, col=j+1, range=[-60,60], tickvals=np.arange(-50, 60, 25), tickfont=dict(size=fontsize),gridcolor=gridline_color,zerolinecolor=gridline_color )
+
+        fig.update_layout(showlegend=True, height=total_height, width=total_width,
+            xaxis=dict(tickfont=dict(size=fontsize)),  # Set x-axis grid color and hide zeroline
+            yaxis=dict(tickfont=dict(size=fontsize))  # Set y-axis grid color
+        )
+        sampled_ticks = [t_launch + datetime.timedelta(hours=i * 24) for i in [3,5,7,9]]
+        tick_labels = [("+" + str(int((i - t_launch).total_seconds()/3600)) + "h") for i in sampled_ticks]
+        fig.update_xaxes(tickvals=sampled_ticks, ticktext=tick_labels, tickfont=dict(size=fontsize),gridcolor=gridline_color,zerolinecolor=gridline_color )
+        #fig.show()    
+                
+    fig.show()    
+    pio.write_image(fig, f"signatureplots/{savedir}.pdf")
+
+    with open(f"signatureplots/{savedir}_data.pkl", "wb") as f:
+        pickle.dump(subplot_data, f)
+
+def signaturecheck(many_lats,many_lons,model_obj, rinput, savedir, checkanimany):
+    
+    onward = 1100 
+    toward = -900
+    names = ['Br', 'Bt', 'Bn']
+    template = "none"  
+    bg_color = 'rgba(0,0,0,0)'
+    line_color = 'black'
+    line_colors =['#c20078','#f97306', '#069af3', '#000000']
+    eventshade = "LightSalmon"
+    framecolor = 'rgba(100, 100, 100, 0.8)'
+            
+    for j, lon in enumerate(many_lons):
+        # Create a new figure for each longitude
+        total_height = len(many_lats) * 200  # Adjust this value as needed
+        
+        # Create a new figure for each longitude with increased height
+        fig = make_subplots(rows=len(many_lats), cols=1, shared_xaxes=True, subplot_titles=[f'Latitude: {lat}°' for lat in many_lats],
+                            vertical_spacing=0.02, row_heights=[total_height // len(many_lats)] * len(many_lats))
+        
+        for k, lat in enumerate(many_lats):
+
+            showlegend = k == 0
+            
+            x,y,z = sphere2cart(float(rinput), np.deg2rad(-float(lat)+90), np.deg2rad(float(lon)))
+
+            checkanimany.add_trace(
+                go.Scatter3d(
+                    x=[x], y=[y], z=[z],
+                    mode='markers', 
+                    marker=dict(size=4, 
+                                symbol='square',
+                                color='red'),
+                    showlegend=False,
+                ), row=1, col=1)
+
+            # Add traces for each latitude as subplots
+            pos_array = get_longmove_array(0, rinput, lon, lat, graphstore)
+            insitufig = make_subplots(rows=1, cols=1, specs=[[{"type": "xy"}]], subplot_titles=['Synthetic Spacecraft at ' + str(lon) + '° lon, ' + str(lat) + '° lat, '])
+            outa = np.array(model_obj.simulator(graphstore['t_data'], pos_array), dtype=object)
+            outa = np.squeeze(outa[0])
+            rtn_bx, rtn_by, rtn_bz = hc.convert_HEEQ_to_RTN_mag(pos_array[:, 0], pos_array[:, 1], pos_array[:, 2], outa[:, 0], outa[:, 1], outa[:, 2])
+            outa[:, 0], outa[:, 1], outa[:, 2] = rtn_bx, rtn_by, rtn_bz
+            outa[outa==0] = np.nan
+            insitufig.add_trace(
+                go.Scatter(
+                    x=graphstore['t_data'][onward:toward],
+                    y=outa[:, 0][onward:toward],
+                    line=dict(color=line_colors[0], width=3, dash='dot'),
+                    name=names[0],
+                    showlegend=showlegend,
+                ),
+                row=1, col=1
+            )
+
+            insitufig.add_trace(
+                go.Scatter(
+                    x=graphstore['t_data'][onward:toward],
+                    y=outa[:, 1][onward:],
+                    line=dict(color=line_colors[1], width=3, dash='dot'),
+                    name=names[1],
+                    showlegend=showlegend,
+                ),
+                row=1, col=1
+            )
+
+            insitufig.add_trace(
+                go.Scatter(
+                    x=graphstore['t_data'][onward:toward],
+                    y=outa[:, 2][onward:],
+                    line=dict(color=line_colors[2], width=3, dash='dot'),
+                    name=names[2],
+                    showlegend=showlegend,
+                ),
+                row=1, col=1
+            )
+
+            insitufig.add_trace(
+                go.Scatter(
+                    x=graphstore['t_data'][onward:toward],
+                    y=np.sqrt(np.sum(outa**2, axis=1))[onward:toward],
+                    line=dict(color=line_colors[3], width=3, dash='dot'),
+                    name='Btot',
+                    showlegend=showlegend,
+                ),
+                row=1, col=1
+            )
+
+            insitufig.update_yaxes(title_text='B [nT]', row=1, col=1, range = [-60,60])
+            #insitufig.update_yaxes(showgrid=True, zeroline=False, showticklabels=True,
+            #                showspikes=True, spikemode='across', spikesnap='cursor', showline=False, spikedash='solid',
+            #                spikethickness=1, row=1, col=1)
+
+            # Halve the font size of subplot titles
+            #insitufig.update_layout(font=dict(size=6))
+            
+            # Add each latitude plot as a subplot to the main figure
+            for trace in insitufig.data:
+                fig.add_trace(trace, row=k+1, col=1)
+
+            fig.update_yaxes(title_text='B [nT]', row=k+1, col=1, range = [-60,60], tickvals=np.arange(-60, 80, 20))
+            fig.update_annotations(font_size=6, row=k+1, col=1)
+        # Update layout for the main figure
+        fig.update_layout(title=f'Longitude: {lon}°' , showlegend=True, height= total_height)
+
+        # Sample a subset of time steps for tick labels
+        sampled_ticks = [t_launch + datetime.timedelta(hours = i * 36) for i in range (5)]
+
+        # Update x-axis tick labels
+        tick_labels = [("+ " + str(int((i - t_launch).total_seconds()/3600)) + " h") for i in sampled_ticks]
+
+        fig.update_xaxes(tickvals=sampled_ticks, ticktext=tick_labels)
+                
+        # Show the figure for each longitude
+        # Save the figure for each longitude
+        pio.write_image(fig, f"signatureplots/{savedir}_longitude_{lon}.png")
+                
+                
+
+    #checkanimany.show()
 
 def generate_figures_and_data(t_data, filtered_points, model_obj, lineofsightvector, lineofsightnorm, lineofsightunit):
     lineofsightfig = make_subplots(rows=1, cols=1, specs=[[{"type": "xy"}]], subplot_titles=['Btot as measured by synthetic Spacecraft along the Line of Sight in HEEQ'])
@@ -221,7 +440,7 @@ def ropeplotter(modelstatevars, timeslide):
     template = "none"  
     bg_color = 'rgba(0,0,0,0)'
     line_color = 'black'
-    line_colors = ['red','green','blue','black']
+    line_colors =['#c20078','#f97306', '#069af3', '#000000']
     eventshade = "LightSalmon"
     framecolor = 'rgba(100, 100, 100, 0.8)'
     cmecolor = 'rgba(100, 100, 100, 0.8)'
@@ -551,7 +770,7 @@ def get_eventinfo(cat_event, purelysyn = False, custom = False, loaded = False):
         
     else:
 
-        url='https://helioforecast.space/static/sync/icmecat/HELIO4CAST_ICMECAT_v21.csv'
+        url='https://helioforecast.space/static/sync/icmecat/HELIO4CAST_ICMECAT_v22.csv'
         icmecat=pd.read_csv(url)
         starttime = icmecat.loc[:,'icme_start_time']
         idds = icmecat.loc[:,'icmecat_id']
@@ -580,7 +799,7 @@ def get_eventinfo(cat_event, purelysyn = False, custom = False, loaded = False):
             }
     return eventinfo
 
-def get_uploaddata(data, filename):
+def get_uploaddata(data, filename, plushours):
     
     '''
     used to generate the insitudata for the graphstore from upload (app.py)
@@ -679,7 +898,21 @@ def get_uploaddata(data, filename):
             dt = time
             b_RTN = np.column_stack((bx, by, bz))
             pos = np.column_stack((posdata.x, posdata.y, posdata.z))
-                          
+
+    if plushours == None:
+        pass
+    else:
+        print('Extending timeframe, padding NaNs, using last known position')
+
+        # Padding NaNs and using the last known position
+        extended_length = len(time) + int(plushours * 60)  # Convert plushours to minutes
+        nan_array = np.full((int(plushours * 60), 3), np.nan)
+        
+        b_HEEQ = np.concatenate((b_HEEQ, nan_array))
+        b_RTN = np.concatenate((b_RTN, nan_array))
+        dt = np.concatenate((dt, np.array([dt[-1] + datetime.timedelta(minutes=i) for i in range(1, int(plushours * 60) + 1)])))
+        pos = np.concatenate((pos, np.tile(pos[-1], (int(plushours * 60), 1))))
+     
     return b_HEEQ, b_RTN, dt, pos
 
 def process_sav(path):
@@ -739,7 +972,7 @@ def process_sav(path):
 
 
 
-def generate_graphstore(infodata, reference_frame, rawdata = None):
+def generate_graphstore(infodata, reference_frame, rawdata = None, plushours = None):
     
     posstore = {}
     newhash = infodata['id']
@@ -815,7 +1048,8 @@ def generate_graphstore(infodata, reference_frame, rawdata = None):
 
     else:
         if infodata['loaded'] is not False:
-            b_data_HEEQ, b_data_RTN, t_data, pos_data = get_uploaddata(rawdata, infodata['loaded'])
+            print('getting uploaded data')
+            b_data_HEEQ, b_data_RTN, t_data, pos_data = get_uploaddata(rawdata, infodata['loaded'], plushours)
         else:
             try:
                 b_data_HEEQ, b_data_RTN, t_data, pos_data = get_archivedata(sc, insitubegin, insituend)
@@ -849,7 +1083,7 @@ def generate_graphstore(infodata, reference_frame, rawdata = None):
 
                     elif (sc == "NOAA_RTSW") or (sc == "STEREO-A_beacon"):
                         print('Loading realtime data...')
-                        b_data_HEEQ, b_data_RTN, t_data, pos_data = get_rt_data(sc, insitubegin, insituend)
+                        b_data_HEEQ, b_data_RTN, t_data, pos_data = get_rt_data(sc, insitubegin, insituend, plushours)
                         if len(b_data_HEEQ) == 0:
                             raise Exception("Data not contained in Archive")
                         print('Realtime insitu data obtained successfully')
@@ -2022,3 +2256,314 @@ def extract_row(row):
     ]
 
     return params
+
+
+
+
+
+def allropeplotter(modelstatevars, timeslide):
+
+    figs = []
+
+    iparams = get_iparams_live(*modelstatevars)
+
+    iparamlist, highincflag = ropechecker(iparams)
+    if highincflag == False:
+        fluxtypes = [
+            ["SWN","",""], # RH-1
+            ["NES","",""], # RH-2
+            ["NWS","",""], # LH-1
+            ["SEN","",""] # LH-2
+            ]
+        subplot_titles= ["Low Inclination Fluxrope Types","","",
+                         "","","",
+                         "","","",
+                         "","",""]
+        
+    else:
+        fluxtypes = [
+            ["WNE","",""], # RH-1
+            ["ESW","",""], # RH-2
+            ["ENW","",""], # LH-1
+            ["WSE","",""] # LH-2
+            ]
+        subplot_titles= ["High Inclination Fluxrope Types","","",
+                         "","","",
+                         "","","",
+                         "","",""]
+    
+    names = ['Br', 'Bt', 'Bn']
+    
+    modelvartypes = []
+
+    specs = [
+        [{"type": "scene", "rowspan": 4},{"type": "scene"}, {"type": "xy"}],
+        [None, {"type": "scene"}, {"type": "xy"}],
+        [None, {"type": "scene"}, {"type": "xy"}],
+        [None, {"type": "scene"}, {"type": "xy"}],
+    ]
+
+    fig = make_subplots(
+            rows=4,
+            cols=3,
+            specs=specs,
+            subplot_titles=subplot_titles,
+            column_widths=[0.5, 0.25, 0.25],
+            )
+
+    template = "none"  
+    bg_color = 'rgba(0,0,0,0)'
+    line_color = 'black'
+    line_colors =['#c20078','#f97306', '#069af3', '#000000']
+    eventshade = "LightSalmon"
+    framecolor = 'rgba(100, 100, 100, 0.8)'
+    cmecolor = 'rgba(100, 100, 100, 0.8)'
+
+    roundedlaunch = datetime.datetime(2012,12,21,6)
+    insituend = roundedlaunch + datetime.timedelta(hours=100)
+    resolution = datetime.timedelta(minutes=1)
+    t_data = [roundedlaunch + i * resolution for i in range(int((insituend - roundedlaunch).total_seconds() / resolution.total_seconds()))]
+
+    for i, fluxtype in enumerate(fluxtypes):
+
+        #fig.show()
+
+        model_obj = coreweb.ToroidalModel(roundedlaunch, **iparamlist[i]) # model gets initialized
+        model_obj.generator()
+
+        ### polar
+
+        model_obj.propagator(roundedlaunch + datetime.timedelta(hours=timeslide))
+            
+        if i == 0:
+            wf_model = model_obj.visualize_shape(iparam_index=0)  
+        
+            wf_array = np.array(wf_model)
+
+            # Extract x, y, and z data from wf_array
+            x = wf_array[:,:,0].flatten()
+            y = wf_array[:,:,1].flatten()
+            z = wf_array[:,:,2].flatten()
+
+            # Create a 3D wireframe plot using plotly
+            fig.add_trace(go.Scatter3d(x=x, y=y, z=z, mode='lines',
+                            line=dict(width=1, color=cmecolor),
+                            showlegend=False), row=1, col=1)
+
+            # Transpose the wf_array to extract wireframe points along the other direction
+            x_wire = wf_array[:,:,0].T.flatten()
+            y_wire = wf_array[:,:,1].T.flatten()
+            z_wire = wf_array[:,:,2].T.flatten()
+
+            # Create another 3D wireframe plot using plotly
+            fig.add_trace(go.Scatter3d(x=x_wire, y=y_wire, z=z_wire, mode='lines',
+                            line=dict(width=1, color=cmecolor),
+                            showlegend=False), row=1, col=1)
+        
+            # Create data for the Sun
+            sun_trace = go.Scatter3d(
+                x=[0], y=[0], z=[0],
+                mode='markers',
+                marker=dict(size=8, color='yellow'),
+                name='Sun',
+                showlegend=False,
+            )
+
+            fig.add_trace(sun_trace, row=1, col=1)
+
+            rinput = 0.7
+            lonput = 0
+            latput = 0
+
+            longmove_array = get_longmove_array(0, rinput,lonput,latput, None)
+
+            x,y,z = longmove_array[60*int(timeslide)] #sphere2cart(float(rinput), np.deg2rad(-float(latput)+90), np.deg2rad(float(lonput)))
+            fig.add_trace(
+                go.Scatter3d(
+                    x=[x], y=[y], z=[z],
+                    mode='markers', 
+                    marker=dict(size=3, 
+                                symbol='square',
+                                color='red'),
+                    name="SYN",
+                    customdata=np.vstack((rinput, latput, lonput)).T,
+                    showlegend=False,
+                    legendgroup = '1',
+                ), row=1, col=1)
+            
+
+            # Create data for concentrical circles
+            circle_traces = []
+            radii = [0.3, 0.5, 0.8]  # Radii for the concentrical circles
+            for r in radii:
+                theta = np.linspace(0, 2 * np.pi, 100)
+                x = r * np.cos(theta)
+                y = r * np.sin(theta)
+                z = np.zeros_like(theta)
+                circle_trace = go.Scatter3d(
+                    x=x, y=y, z=z,
+                    mode='lines',
+                    line=dict(color='gray'),
+                    showlegend=False,
+                    hovertemplate = None, 
+                    hoverinfo = "skip", 
+                )
+                fig.add_trace(circle_trace, row=1, col=1)
+
+                # Add labels for the circles next to the line connecting Sun and Earth
+                label_x = r  # x-coordinate for label position
+                label_y = 0  # y-coordinate for label position
+                label_trace = go.Scatter3d(
+                    x=[label_x], y=[label_y], z=[0],
+                    mode='text',
+                    text=[f'{r} AU'],
+                    textposition='middle left',
+                    textfont=dict(size=8),
+                    showlegend=False,
+                    hovertemplate = None, 
+                    hoverinfo = "skip", 
+                )
+                fig.add_trace(label_trace, row=1, col=1)
+
+            
+            
+            
+            
+            # Create data for the AU lines and their labels
+            num_lines = 8
+            for l in range(num_lines):
+                angle_degrees = -180 + (l * 45)  # Adjusted angle in degrees (-180 to 180)
+                angle_radians = np.deg2rad(angle_degrees)
+                x = [0, np.cos(angle_radians)]
+                y = [0, np.sin(angle_radians)]
+                z = [0, 0]
+                au_line = go.Scatter3d(
+                    x=x, y=y, z=z,
+                    mode='lines',
+                    line=dict(color=framecolor),
+                    name=f'{angle_degrees}°',
+                    showlegend=False,
+                    hovertemplate = None, 
+                    hoverinfo = "skip", 
+                )
+                fig.add_trace(au_line, row=1, col=1)
+
+                # Add labels for the AU lines
+                label_x = 1.1 * np.cos(angle_radians)
+                label_y = 1.1 * np.sin(angle_radians)
+                label_trace = go.Scatter3d(
+                    x=[label_x], y=[label_y], z=[0],
+                    mode='text',
+                    text=[f'+/{angle_degrees}°' if angle_degrees == -180 else f'{angle_degrees}°'],
+                    textposition='middle center',
+                    textfont=dict(size=8),
+                    showlegend=False,
+                    hovertemplate = None, 
+                    hoverinfo = "skip", 
+                )
+                fig.add_trace(label_trace, row=1, col=1)
+
+            ran = 1.2
+
+            # Set the layout
+            fig.update_layout(
+                template=template, 
+                plot_bgcolor=bg_color,  # Background color for the entire figure
+                scene=dict(
+                    xaxis=dict(showticklabels=False, showgrid=False, zeroline=False, showline=False, title='', showspikes=False, range=[-ran, ran]),  # Adjust the range as needed
+                    yaxis=dict(showticklabels=False, showgrid=False, zeroline=False, showline=False, title='', showspikes=False, range=[-ran, ran]),  # Adjust the range as needed
+                    zaxis=dict(showticklabels=False, showgrid=False, zeroline=False, showline=False, title='', showspikes=False, range=[-ran, ran]),  # Adjust the range as needed
+                    aspectmode='cube',
+                    camera=dict(eye=dict(x=1.5, y=0, z=0.7)),
+                    bgcolor=bg_color,
+                ),
+                height=1200,
+                width=1800,
+            )
+        
+        outa = np.array(model_obj.simulator(t_data, longmove_array), dtype=object)
+
+        outa = np.squeeze(outa[0])
+
+        rtn_bx, rtn_by, rtn_bz = hc.convert_HEEQ_to_RTN_mag(longmove_array[:, 0], longmove_array[:, 1], longmove_array[:, 2], outa[:, 0],outa[:, 1],outa[:, 2])
+        outa[:, 0],outa[:, 1],outa[:, 2] = rtn_bx, rtn_by, rtn_bz
+
+        outa[outa==0] = np.nan
+
+
+        # Find the range of non-NaN values
+        valid_indices = np.where(~np.isnan(outa[:, 0]))[0]
+        min_index = valid_indices.min()
+        max_index = valid_indices.max()
+
+        show_legend = True if i == 0 else False
+
+        fig.add_trace(
+            go.Scatter(
+                x=t_data[min_index:max_index + 1],  # Use the valid range of indices
+                y=outa[min_index:max_index + 1, 0],
+                line=dict(color=line_colors[0], width=3, #dash='dot'
+                          ),
+                name=names[0],
+                showlegend=show_legend, 
+            ),
+            row=i + 1, col=3
+        )
+
+        fig.add_trace(
+            go.Scatter(
+                x=t_data[min_index:max_index + 1],  # Use the valid range of indices
+                y=outa[min_index:max_index + 1, 1],
+                line=dict(color=line_colors[1], width=3, #dash='dot'
+                          ),
+                name=names[1],
+                showlegend=show_legend, 
+            ),
+            row=i + 1, col=3
+        )
+
+        fig.add_trace(
+            go.Scatter(
+                x=t_data[min_index:max_index + 1],  # Use the valid range of indices
+                y=outa[min_index:max_index + 1, 2],
+                line=dict(color=line_colors[2], width=3, #dash='dot'
+                          ),
+                name=names[2],
+                showlegend=show_legend, 
+            ),
+            row=i + 1, col=3
+        )
+
+        fig.add_trace(
+            go.Scatter(
+                x=t_data[min_index:max_index + 1],  # Use the valid range of indices
+                y=np.sqrt(np.sum(outa[min_index:max_index + 1]**2, axis=1)),
+                line=dict(color=line_colors[3], width=3, #dash='dot'
+                          ),
+                name='Btot',
+                showlegend=show_legend, 
+            ),
+            row=i + 1, col=3
+        )
+
+        # Sample a subset of time steps for tick labels
+        max_ticks = 10  # Adjust the number of ticks as needed
+        sampled_ticks = t_data[::len(t_data) // max_ticks]
+
+        # Update x-axis tick labels
+        tick_labels = [("+ " + str(int((i - roundedlaunch).total_seconds()/3600)) + " h") for i in sampled_ticks]
+
+        fig.update_xaxes(tickvals=sampled_ticks, ticktext=tick_labels, row=i + 1, col=3)
+
+
+
+        fig.update_yaxes(title_text='B [nT]', row=i + 1, col=3) #, range=[min_b_data - y_range_padding, max_b_data + y_range_padding])
+        fig.update_yaxes(showgrid=True, zeroline=False, showticklabels=True,
+                        showspikes=True, spikemode='across', spikesnap='cursor', showline=False, spikedash='solid',
+                        spikethickness=1, row=i + 1, col=3)
+        fig.update_xaxes(showgrid=True, zeroline=False, showticklabels=True, rangeslider_visible=False,
+                        showspikes=True, spikemode='across', spikesnap='cursor', showline=False, spikedash='solid',
+                        spikethickness=1, row=i + 1, col=3)
+
+
+    return fig

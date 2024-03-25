@@ -5,10 +5,14 @@ import plotly.figure_factory as ff
 
 import coreweb
 
+from coreweb.models.toroidal import thin_torus_gh, thin_torus_qs, thin_torus_sq
 from coreweb.dashcore.utils.utils import cart2sphere, sphere2cart, round_to_hour_or_half, get_iparams_live, process_coordinates, plot_body3d
 import coreweb.dashcore.utils.heliocats as hc
+import coreweb.methods.data_frame_transforms as dft
 
 import numpy as np 
+import copy
+from scipy.optimize import least_squares
 
 import datetime
 
@@ -130,11 +134,11 @@ def get_longmove_array(longmove, rinput, lonput, latput, graph):
 
 
 
-def check_animation(pos_array, results, plottheme, graph, reference_frame, rinput, lonput, latput, timeslider, infodata, launchlabel, plotoptions, spacecraftoptions, bodyoptions, insitu, positions, view_legend_insitu, camera, posstore, *modelstatevars):
+def check_animation(pos_array, results, plottheme, graph, reference_frame, rinput, lonput, latput, timeslider, infodata, launchlabel, plotoptions, spacecraftoptions, bodyoptions, insitu, positions, view_legend_insitu, camera, posstore, *modelstatevars, addfield = False):
     template = "none"
     bg_color = 'rgba(0, 0,0, 0)'
     line_color = 'white'
-    line_colors = ['red','green','blue','black']
+    line_colors =['#c20078','#f97306', '#069af3', '#000000']
 
     if "dotted" in plotoptions:
         dotted = "dot"
@@ -256,7 +260,7 @@ def check_animation(pos_array, results, plottheme, graph, reference_frame, rinpu
             template = "plotly_dark"
             bg_color = 'rgba(255, 255, 255, 0)'
             line_color = 'white'
-            line_colors = ['orange','lime','deepskyblue','white']
+            line_colors =['#c20078','#f97306', '#069af3', 'white']
             eventshade = "white"
             framecolor = 'rgba(100, 100, 100, 0.8)'
             if plottheme == 'dark-simple':
@@ -268,7 +272,7 @@ def check_animation(pos_array, results, plottheme, graph, reference_frame, rinpu
             template = "none"  
             bg_color = 'rgba(0,0,0,0)'
             line_color = 'black'
-            line_colors = ['red','green','blue','black']
+            line_colors =['#c20078','#f97306', '#069af3', '#000000']
             eventshade = "LightSalmon"
             framecolor = 'rgba(100, 100, 100, 0.8)'
             if plottheme == 'light-simple':
@@ -304,6 +308,39 @@ def check_animation(pos_array, results, plottheme, graph, reference_frame, rinpu
                            line=dict(width=1, color=cmecolor),
                            showlegend=False), row=posrow, col=1)
             
+            if addfield == True:
+                print('Tracing Fieldlines')
+                step_size=0.005
+                fieldradii = [0.3, 0.5, 0.8]
+                fieldlons = [.1, .3, .5, .8]
+                pifacs = [1, 2, 4]
+
+                twist2_params = copy.deepcopy(iparams)  # Perform a deep copy of iparams
+                twist2_params['iparams']['t_factor']['default_value'] = 25.
+                model_obj2 = coreweb.ToroidalModel(roundedlaunch, **twist2_params) # model gets initialized
+                model_obj2.generator() 
+                model_obj2.propagator(roundedlaunch + datetime.timedelta(hours=timeslider))
+            
+                #print(model_obj.iparams)
+
+                #for fr in fieldradii:
+                    #for fd in fieldlons:
+                        #for pifac in pifacs:
+                
+                q0=[0.8, .2, np.pi/2]
+                q0i =np.array(q0, dtype=np.float32)
+                fl = visualize_fieldline(model_obj, q0, index=0, steps=8000, step_size=0.005)
+                fig.add_trace(go.Scatter3d(x=fl[:,0], y=fl[:,1], z=fl[:,2], mode='lines',
+                        line=dict(width=2, color='red'),
+                        showlegend=True,
+                        name='Fieldline_high_twist',
+                        legendgroup = '1'), row=posrow, col=1)
+                fl2 = visualize_fieldline(model_obj2, q0, index=0, steps=8000, step_size=0.005)
+                fig.add_trace(go.Scatter3d(x=fl2[:,0], y=fl2[:,1], z=fl2[:,2], mode='lines',
+                        line=dict(width=2, color='blue'),
+                        showlegend=True,
+                        name='Fieldline_low_twist',
+                        legendgroup = '1'), row=posrow, col=1)
             
         if "Catalog Event" in plotoptions:
             roundedbegin = round_to_hour_or_half(begin) 
@@ -615,8 +652,10 @@ def check_animation(pos_array, results, plottheme, graph, reference_frame, rinpu
     
         if reference_frame == 'HEEQ':
             ed = results['ensemble_HEEQ']
-        else:
+        elif reference_frame == "RTN":
             ed = results['ensemble_RTN']
+        else:
+            ed = results['ensemble_GSM']
 
         #print(len(ed[0][3][0]))
         #print(len(graph['t_data']))
@@ -624,12 +663,12 @@ def check_animation(pos_array, results, plottheme, graph, reference_frame, rinpu
         shadow_data = [
             (ed[0][3][0], None, 'black'),
             (ed[0][3][1], 'rgba(0, 0, 0, 0.15)', 'black'),
-            (ed[0][2][0][:, 0], None, 'red'),
-            (ed[0][2][1][:, 0], 'rgba(255, 0, 0, 0.15)', 'red'),
-            (ed[0][2][0][:, 1], None, 'green'),
-            (ed[0][2][1][:, 1], 'rgba(0, 255, 0, 0.15)', 'green'),
-            (ed[0][2][0][:, 2], None, 'blue'),
-            (ed[0][2][1][:, 2], 'rgba(0, 0, 255, 0.15)', 'blue')
+            (ed[0][2][0][:, 0], None, line_colors[0]),
+            (ed[0][2][1][:, 0], line_colors[0].replace(')',', 0.15)'), line_colors[0]),
+            (ed[0][2][0][:, 1], None, line_colors[1]),
+            (ed[0][2][1][:, 1], line_colors[1].replace(')',', 0.15)'), line_colors[1]),
+            (ed[0][2][0][:, 2], None, line_colors[2]),
+            (ed[0][2][1][:, 2], line_colors[2].replace(')',', 0.15)'), line_colors[2]),
         ]            
        
 
@@ -766,21 +805,32 @@ def check_animation(pos_array, results, plottheme, graph, reference_frame, rinpu
             outa = np.squeeze(outa[0])
             
             if sc == "SYN":
-                if reference_frame == "RTN":
+                if reference_frame == "RTN" or reference_frame == "GSM":
                     try:
                         rtn_bx, rtn_by, rtn_bz = hc.convert_HEEQ_to_RTN_mag(pos_array[:, 0], pos_array[:, 1], pos_array[:, 2], outa[:, 0],outa[:, 1],outa[:, 2])
                         outa[:, 0],outa[:, 1],outa[:, 2] = rtn_bx, rtn_by, rtn_bz
+                        if reference_frame == "GSM":
+                            outa[:, 0],outa[:, 1],outa[:, 2] = dft.RTN_to_GSM(x, y, z, rtn_bx,rtn_by,rtn_bz, graph['t_data'])
+                        
+            
                     except TypeError:
                         x,y,z = hc.separate_components(graph['pos_data'])
                     #print(x,y,z)
                         rtn_bx, rtn_by, rtn_bz = hc.convert_HEEQ_to_RTN_mag(x,y,z, outa[:, 0],outa[:, 1],outa[:, 2])
                         outa[:, 0],outa[:, 1],outa[:, 2] = rtn_bx, rtn_by, rtn_bz
+                        if reference_frame == "GSM":
+                            outa[:, 0],outa[:, 1],outa[:, 2] = dft.RTN_to_GSM(x, y, z, rtn_bx,rtn_by,rtn_bz, graph['t_data'])
+                        
+            
             else:
-                if reference_frame == "RTN":
+                if reference_frame == "RTN" or reference_frame == "GSM":
                     x,y,z = hc.separate_components(graph['pos_data'])
                     #print(x,y,z)
                     rtn_bx, rtn_by, rtn_bz = hc.convert_HEEQ_to_RTN_mag(x,y,z, outa[:, 0],outa[:, 1],outa[:, 2])
                     outa[:, 0],outa[:, 1],outa[:, 2] = rtn_bx, rtn_by, rtn_bz
+
+                    if reference_frame == "GSM":
+                        outa[:, 0],outa[:, 1],outa[:, 2] = dft.RTN_to_GSM(x, y, z, rtn_bx,rtn_by,rtn_bz, graph['t_data'])
                         
             
             outa[outa==0] = np.nan
@@ -853,8 +903,8 @@ def check_animation(pos_array, results, plottheme, graph, reference_frame, rinpu
             fig.add_shape(rect_shape,row=row, col=1)
             
         # Calculate the y-axis limits for the second subplot
-        min_b_data = np.min(b_data)
-        max_b_data = np.max(b_data)
+        min_b_data = np.nanmin(b_data)
+        max_b_data = np.nanmax(b_data)
         y_range_padding = 10  # Adjust this value as needed
 
         # if sc == "SYN":
@@ -867,9 +917,9 @@ def check_animation(pos_array, results, plottheme, graph, reference_frame, rinpu
 
         #     fig.update_xaxes(tickvals=sampled_ticks, ticktext=tick_labels, row=row, col=1)
 
+        title_text = 'B (' + reference_frame + ') [nT]' 
 
-
-        fig.update_yaxes(title_text='B [nT]', row=row, col=1, range=[min_b_data - y_range_padding, max_b_data + y_range_padding])
+        fig.update_yaxes(title_text=title_text, row=row, col=1, range=[min_b_data - y_range_padding, max_b_data + y_range_padding])
         fig.update_yaxes(showgrid=True, zeroline=False, showticklabels=True,
                          showspikes=True, spikemode='across', spikesnap='cursor', showline=False, spikedash='solid',
                          spikethickness=1, row=row, col=1)
@@ -925,7 +975,7 @@ def check_fittingpoints(graph, reference_frame, infodata, view_legend_insitu, sh
     template = "none"
     bg_color = 'rgba(0, 0,0, 0)'
     line_color = 'black'
-    line_colors = ['red','green','blue','black']
+    line_colors =['#c20078','#f97306', '#069af3', '#000000']
     eventshade = "LightSalmon"
 
     if infodata['id'][0] == 'I':
@@ -1146,7 +1196,7 @@ def plot_simpleres(pos_array, results, plottheme, graph, reference_frame, infoda
     template = "none"
     bg_color = 'rgba(0, 0,0, 0)'
     line_color = 'black'
-    line_colors = ['red','green','blue','black']
+    line_colors =['#c20078','#f97306', '#069af3', '#000000']
     eventshade = "LightSalmon"
 
     if infodata['id'][0] == 'I':
@@ -1350,3 +1400,55 @@ def plot_simpleres(pos_array, results, plottheme, graph, reference_frame, infoda
     
     #fig.show()
     return fig, t_s, t_e, t_fit
+
+
+
+def visualize_fieldline(obj, q0, index=0, steps=1000, step_size=0.01):
+    
+        """Integrates along the magnetic field lines starting at a point q0 in (q) coordinates and
+        returns the field lines in (s) coordinates.
+
+        Parameters
+        ----------
+        q0 : np.ndarray
+            Starting point in (q) coordinates.
+        index : int, optional
+            Model run index, by default 0.
+        steps : int, optional
+            Number of integration steps, by default 1000.
+        step_size : float, optional
+            Integration step size, by default 0.01.
+
+        Returns
+        -------
+        np.ndarray
+            Integrated magnetic field lines in (s) coordinates.
+        """
+
+        _tva = np.empty((3,), dtype=obj.dtype)
+        _tvb = np.empty((3,), dtype=obj.dtype)
+
+        thin_torus_qs(q0, obj.iparams_arr[index], obj.sparams_arr[index], obj.qs_xs[index], _tva)
+
+        fl = [np.array(_tva, dtype=obj.dtype)]
+        def iterate(s):
+            thin_torus_sq(s, obj.iparams_arr[index], obj.sparams_arr[index], obj.qs_sx[index],_tva)
+            thin_torus_gh(_tva, obj.iparams_arr[index], obj.sparams_arr[index], obj.qs_xs[index], _tvb)
+            return _tvb / np.linalg.norm(_tvb)
+
+        while len(fl) < steps:
+            # use implicit method and least squares for calculating the next step
+            try:
+                sol = getattr(least_squares(
+                    lambda x: x - fl[-1] - step_size *
+                    iterate((x.astype(obj.dtype) + fl[-1]) / 2),
+                    fl[-1]), "x")
+
+                fl.append(np.array(sol.astype(obj.dtype)))
+            except Exception as e:
+                print(e)
+                break
+
+        fl = np.array(fl, dtype=obj.dtype)
+
+        return fl
