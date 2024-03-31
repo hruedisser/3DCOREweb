@@ -2,7 +2,7 @@
     "cme_launch_offset": {
         "index": 0,
         "name": "launch time",
-        "distribution": "uniform",
+        "distribution": "fixed",
         "default_value": 0,
         "maximum": 3600,
         "minimum": -3600,
@@ -13,7 +13,7 @@
         "index": 1,
         "name": "longitude",
         "distribution": "uniform",
-        "maximum": 360,
+        "maximum": 180,
         "minimum": -180,
         "boundary": "periodic",
         "label": "lon"
@@ -41,8 +41,8 @@
         "index": 4,
         "name": "diameter",
         "distribution": "uniform",
-        "maximum": 0.35, 
-        "minimum": 0.05,
+        "maximum": 0.3,
+        "minimum": 0.06,
         "boundary": "continuous",
         "label": "d_{1au}"
     },
@@ -50,7 +50,7 @@
         "index": 5,
         "name": "aspect ratio",
         "distribution": "uniform",
-        "maximum": 6,
+        "maximum": 3.5,
         "minimum": 1,
         "boundary": "continuous",
         "label": "\\delta"
@@ -59,10 +59,10 @@
     "cme_launch_radius": {
         "index": 6,
         "name": "initial radius",
-        "distribution": "uniform",
+        "distribution": "fixed",
         "default_value": 20,
         "maximum": 100,
-        "minimum": 1,
+        "minimum": 5,
         "boundary": "continuous",
         "label": "r_0"
     },
@@ -70,7 +70,7 @@
         "index": 7,
         "name": "velocity",
         "distribution": "uniform",
-        "maximum": 3000,
+        "maximum": 1000,
         "minimum": 400,
         "boundary": "continuous",
         "label": "v_0"
@@ -87,7 +87,7 @@
     "cme_expansion_rate": {
         "index": 9,
         "name": "cme expansion rate",
-        "distribution": "uniform",
+        "distribution": "fixed",
         "default_value": 1.14,
         "maximum": 2,
         "minimum": 0.3,
@@ -97,7 +97,7 @@
     "magnetic_decay_rate": {
         "index": 10,
         "name": "magnetic field decay",
-        "distribution": "uniform",
+        "distribution": "fixed",
         "default_value": 1.64,
         "maximum": 2,
         "minimum": 1,
@@ -109,7 +109,7 @@
         "index": 11,
         "name": "axial strength",
         "distribution": "uniform",
-        "maximum": 150,
+        "maximum": 50,
         "minimum": 5,
         "boundary": "continuous",
         "label": "b_{1au}"
@@ -118,7 +118,7 @@
         "index": 12,
         "name": "background drag",
         "distribution": "uniform",
-        "maximum": 3,
+        "maximum": 2,
         "minimum": 0.2,
         "boundary": "continuous",
         "label": "\\gamma"
@@ -127,9 +127,59 @@
         "index": 13,
         "name": "background velocity",
         "distribution": "uniform",
-        "maximum": 700,
-        "minimum": 100,
+        "maximum": 450,
+        "minimum": 250,
         "boundary": "continuous",
         "label": "v_{sw}"
+    },
+    "alpha": {
+        "index": 14,
+        "name": "width scale parameter",
+        "distribution": "uniform",
+        "default_value": 0,
+        "maximum": 0.75,
+        "minimum": -0.25,
+        "boundary": "continuous",
+        "label": "\\alpha"
+    },
+    "beta": {
+        "index": 15,
+        "name": "beta scale height parameter",
+        "distribution": "uniform",
+        "default_value": 0,
+        "maximum": 0.225,
+        "minimum": -0.225,
+        "boundary": "continuous",
+        "label": "\\beta"
+    },
+    "lambda": {
+        "index": 16,
+        "name": "side width parameter",
+        "distribution": "uniform",
+        "default_value": 1,
+        "maximum": 2,
+        "minimum": 0.25,
+        "boundary": "continuous",
+        "label": "\\alpha"
+    },
+    "epsilon": {
+        "index": 17,
+        "name": "wave parameter",
+        "distribution": "uniform",
+        "default_value": 0,
+        "maximum": 2,
+        "minimum": -2,
+        "boundary": "continuous",
+        "label": "\\alpha"
+    },
+    "kappa": {
+        "index": 18,
+        "name": "kappa front parameter",
+        "distribution": "fixed",
+        "default_value": 2,
+        "maximum": 2,
+        "minimum": 0,
+        "boundary": "continuous",
+        "label": "\\alpha"
     }
 }

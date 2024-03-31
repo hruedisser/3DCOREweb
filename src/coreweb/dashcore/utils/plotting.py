@@ -140,6 +140,8 @@ def check_animation(pos_array, results, plottheme, graph, reference_frame, rinpu
     line_color = 'white'
     line_colors =['#c20078','#f97306', '#069af3', '#000000']
 
+    fontsize = 12
+
     if "dotted" in plotoptions:
         dotted = "dot"
     elif "dashed" in plotoptions:
@@ -327,19 +329,19 @@ def check_animation(pos_array, results, plottheme, graph, reference_frame, rinpu
                     #for fd in fieldlons:
                         #for pifac in pifacs:
                 
-                q0=[0.8, .2, np.pi/2]
+                q0=[0.8, .1, np.pi/2]
                 q0i =np.array(q0, dtype=np.float32)
                 fl = visualize_fieldline(model_obj, q0, index=0, steps=8000, step_size=0.005)
                 fig.add_trace(go.Scatter3d(x=fl[:,0], y=fl[:,1], z=fl[:,2], mode='lines',
-                        line=dict(width=2, color='red'),
+                        line=dict(width=4, color='red'),
                         showlegend=True,
-                        name='Fieldline_high_twist',
+                        name='Field line (T' + u"\u03c4 = 245)",
                         legendgroup = '1'), row=posrow, col=1)
                 fl2 = visualize_fieldline(model_obj2, q0, index=0, steps=8000, step_size=0.005)
                 fig.add_trace(go.Scatter3d(x=fl2[:,0], y=fl2[:,1], z=fl2[:,2], mode='lines',
-                        line=dict(width=2, color='blue'),
+                        line=dict(width=4, color='blue'),
                         showlegend=True,
-                        name='Fieldline_low_twist',
+                        name='Field line (T' + u"\u03c4 = 25)",
                         legendgroup = '1'), row=posrow, col=1)
             
         if "Catalog Event" in plotoptions:
@@ -498,7 +500,7 @@ def check_animation(pos_array, results, plottheme, graph, reference_frame, rinpu
                     mode='text',
                     text=[f'{r} AU'],
                     textposition='middle left',
-                    textfont=dict(size=8),
+                    textfont=dict(size=fontsize),
                     showlegend=False,
                     hovertemplate = None, 
                     hoverinfo = "skip", 
@@ -536,7 +538,7 @@ def check_animation(pos_array, results, plottheme, graph, reference_frame, rinpu
                     mode='text',
                     text=[f'+/{angle_degrees}°' if angle_degrees == -180 else f'{angle_degrees}°'],
                     textposition='middle center',
-                    textfont=dict(size=8),
+                    textfont=dict(size=fontsize),
                     showlegend=False,
                     hovertemplate = None, 
                     hoverinfo = "skip", 
@@ -570,7 +572,7 @@ def check_animation(pos_array, results, plottheme, graph, reference_frame, rinpu
                     mode='text',
                     text=[f'{r} AU'],
                     textposition='middle left',
-                    textfont=dict(size=8),
+                    textfont=dict(size=fontsize),
                     showlegend=False,
                     hovertemplate = None, 
                     hoverinfo = "skip", 
@@ -604,7 +606,7 @@ def check_animation(pos_array, results, plottheme, graph, reference_frame, rinpu
                     mode='text',
                     text=[f'{angle_degrees}°'],
                     textposition='middle center',
-                    textfont=dict(size=8),
+                    textfont=dict(size=fontsize),
                     showlegend=False,
                     hovertemplate = None, 
                     hoverinfo = "skip", 
@@ -628,17 +630,19 @@ def check_animation(pos_array, results, plottheme, graph, reference_frame, rinpu
         
 
         # Set the layout
+        fig.update_annotations(font_size=fontsize)
         fig.update_layout(
             template=template, 
             plot_bgcolor=bg_color,  # Background color for the entire figure
             scene=dict(
-                xaxis=dict(showticklabels=False, showgrid=False, zeroline=False, showline=False, title = '',showspikes=False),
-                yaxis=dict(showticklabels=False, showgrid=False, zeroline=False, showline=False, title = '', showspikes=False),
-                zaxis=dict(showticklabels=False, showgrid=False, zeroline=False, showline=False, title = '', showspikes=False, range=[0, 0]),  # Adjust the range as needed
+                xaxis=dict(tickfont=dict(size=fontsize),showticklabels=False, showgrid=False, zeroline=False, showline=False, title = '',showspikes=False),
+                yaxis=dict(tickfont=dict(size=fontsize),showticklabels=False, showgrid=False, zeroline=False, showline=False, title = '', showspikes=False),
+                zaxis=dict(tickfont=dict(size=fontsize),showticklabels=False, showgrid=False, zeroline=False, showline=False, title = '', showspikes=False, range=[0, 0]),  # Adjust the range as needed
                 aspectmode='cube',
                 
-            bgcolor=bg_color,
-            )#, row=posrow, col=1
+            bgcolor=bg_color
+            ),
+            legend=dict(font=dict(size=fontsize)) #, row=posrow, col=1
         )
     
     
@@ -919,13 +923,13 @@ def check_animation(pos_array, results, plottheme, graph, reference_frame, rinpu
 
         title_text = 'B (' + reference_frame + ') [nT]' 
 
-        fig.update_yaxes(title_text=title_text, row=row, col=1, range=[min_b_data - y_range_padding, max_b_data + y_range_padding])
+        fig.update_yaxes(title_text=title_text, row=row, col=1, range=[min_b_data - y_range_padding, max_b_data + y_range_padding], title_font=dict(size=fontsize))
         fig.update_yaxes(showgrid=True, zeroline=False, showticklabels=True,
                          showspikes=True, spikemode='across', spikesnap='cursor', showline=False, spikedash='solid',
-                         spikethickness=1, row=row, col=1)
+                         spikethickness=1, row=row, col=1,tickfont=dict(size=fontsize))
         fig.update_xaxes(showgrid=True, zeroline=False, showticklabels=True, rangeslider_visible=False,
                          showspikes=True, spikemode='across', spikesnap='cursor', showline=False, spikedash='solid',
-                         spikethickness=1, row=row, col=1)
+                         spikethickness=1, row=row, col=1,tickfont=dict(size=fontsize))
 
     
     height = 0
@@ -941,12 +945,16 @@ def check_animation(pos_array, results, plottheme, graph, reference_frame, rinpu
 
     if camera != 'auto':
         
-        zeropoint = [0,206.62,90]
-        for i in range(3):
-            camera[i] = camera[i] + zeropoint[i]
-        xcam, ycam, zcam = sphere2cart(float(camera[0]),np.deg2rad(-float(camera[1]))+90,np.deg2rad(float(camera[2])))
+        # zeropoint = [0,206.62,90]
+        # for i in range(3):
+        #     camera[i] = camera[i] + zeropoint[i]
+        # xcam, ycam, zcam = sphere2cart(float(camera[0]),np.deg2rad(-float(camera[1]))+90,np.deg2rad(float(camera[2])))
+        # camera = dict(
+        #     eye=dict(x=xcam, y=ycam, z=zcam)
+        # )
+
         camera = dict(
-            eye=dict(x=xcam, y=ycam, z=zcam)
+            eye=dict(x=camera[0], y=camera[1], z=camera[2])
         )
         #print(xcam, ycam, zcam)
         
@@ -1452,3 +1460,24 @@ def visualize_fieldline(obj, q0, index=0, steps=1000, step_size=0.01):
         fl = np.array(fl, dtype=obj.dtype)
 
         return fl
+
+
+def scatterparams(df):
+    
+    ''' returns scatterplots from a results file'''
+    
+    # drop first column
+    df.drop(df.columns[[0]], axis=1, inplace=True)
+
+    # rename columns
+    #df.columns = ['lon', 'lat', 'inc', 'D1AU', 'delta', 'launch radius', 'launch speed', 't factor', 'expansion rate', 'B decay rate', 'B1AU', 'gamma', 'vsw']
+
+    g = sns.pairplot(df, 
+                     corner=True,
+                     plot_kws=dict(marker="+", linewidth=1)
+                    )
+    g.map_lower(sns.kdeplot, levels=[0.05, 0.32], color=".2") #  levels are 2-sigma and 1-sigma contours
+    #g.savefig(path[:-7] + 'scatter_plot_matrix.pdf')
+    plt.show()
+
+    return g

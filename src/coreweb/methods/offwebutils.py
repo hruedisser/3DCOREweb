@@ -42,12 +42,12 @@ import plotly.io as pio
 import pickle
 
 def signaturecheckfull(many_lats, many_lons, model_obj, rinput, savedir, checkanimany, graphstore, t_launch):
-    fontsize = 16  # Define the fontsize variable
-    gridline_color = 'rgba(0, 0, 0, 0.5)'  # Define the color of gridlines
+    fontsize = 22  # Define the fontsize variable
+    gridline_color = 'rgba(0, 0, 0, 0.3)'  # Define the color of gridlines
     trace_width = 4  # Define the width of traces
     
     onward = 2800 
-    toward = -500 if len(many_lons) > 4 else -3500
+    toward = -800 if len(many_lons) > 4 else -3800
 
     names = ['Br', 'Bt', 'Bn', 'Btot']
     line_colors =['#c20078','#f97306', '#069af3', '#000000']
@@ -2265,6 +2265,8 @@ def allropeplotter(modelstatevars, timeslide):
 
     figs = []
 
+    fontsize = 28  # Define the fontsize variable
+
     iparams = get_iparams_live(*modelstatevars)
 
     iparamlist, highincflag = ropechecker(iparams)
@@ -2411,19 +2413,19 @@ def allropeplotter(modelstatevars, timeslide):
                 fig.add_trace(circle_trace, row=1, col=1)
 
                 # Add labels for the circles next to the line connecting Sun and Earth
-                label_x = r  # x-coordinate for label position
-                label_y = 0  # y-coordinate for label position
+                label_x = 0  # x-coordinate for label position
+                label_y = r  # y-coordinate for label position
                 label_trace = go.Scatter3d(
                     x=[label_x], y=[label_y], z=[0],
                     mode='text',
                     text=[f'{r} AU'],
                     textposition='middle left',
-                    textfont=dict(size=8),
+                    textfont=dict(size=fontsize),
                     showlegend=False,
                     hovertemplate = None, 
                     hoverinfo = "skip", 
                 )
-                fig.add_trace(label_trace, row=1, col=1)
+                #fig.add_trace(label_trace, row=1, col=1)
 
             
             
@@ -2456,7 +2458,7 @@ def allropeplotter(modelstatevars, timeslide):
                     mode='text',
                     text=[f'+/{angle_degrees}°' if angle_degrees == -180 else f'{angle_degrees}°'],
                     textposition='middle center',
-                    textfont=dict(size=8),
+                    textfont=dict(size=22),
                     showlegend=False,
                     hovertemplate = None, 
                     hoverinfo = "skip", 
@@ -2466,21 +2468,23 @@ def allropeplotter(modelstatevars, timeslide):
             ran = 1.2
 
             # Set the layout
+            fig.update_annotations(font_size=fontsize)
             fig.update_layout(
                 template=template, 
                 plot_bgcolor=bg_color,  # Background color for the entire figure
                 scene=dict(
-                    xaxis=dict(showticklabels=False, showgrid=False, zeroline=False, showline=False, title='', showspikes=False, range=[-ran, ran]),  # Adjust the range as needed
-                    yaxis=dict(showticklabels=False, showgrid=False, zeroline=False, showline=False, title='', showspikes=False, range=[-ran, ran]),  # Adjust the range as needed
-                    zaxis=dict(showticklabels=False, showgrid=False, zeroline=False, showline=False, title='', showspikes=False, range=[-ran, ran]),  # Adjust the range as needed
+                    xaxis=dict(tickfont=dict(size=fontsize),showticklabels=False, showgrid=False, zeroline=False, showline=False, title='', showspikes=False, range=[-ran, ran]),  # Adjust the range as needed
+                    yaxis=dict(tickfont=dict(size=fontsize),showticklabels=False, showgrid=False, zeroline=False, showline=False, title='', showspikes=False, range=[-ran, ran]),  # Adjust the range as needed
+                    zaxis=dict(tickfont=dict(size=fontsize),showticklabels=False, showgrid=False, zeroline=False, showline=False, title='', showspikes=False, range=[-ran, ran]),  # Adjust the range as needed
                     aspectmode='cube',
                     camera=dict(eye=dict(x=1.5, y=0, z=0.7)),
                     bgcolor=bg_color,
                 ),
                 height=1200,
                 width=1800,
+                legend=dict(font=dict(size=fontsize))
             )
-        
+
         outa = np.array(model_obj.simulator(t_data, longmove_array), dtype=object)
 
         outa = np.squeeze(outa[0])
@@ -2553,17 +2557,20 @@ def allropeplotter(modelstatevars, timeslide):
         # Update x-axis tick labels
         tick_labels = [("+ " + str(int((i - roundedlaunch).total_seconds()/3600)) + " h") for i in sampled_ticks]
 
-        fig.update_xaxes(tickvals=sampled_ticks, ticktext=tick_labels, row=i + 1, col=3)
+        fig.update_xaxes(tickvals=sampled_ticks, ticktext=tick_labels, row=i + 1, col=3, tickfont=dict(size=fontsize))
 
 
 
-        fig.update_yaxes(title_text='B [nT]', row=i + 1, col=3) #, range=[min_b_data - y_range_padding, max_b_data + y_range_padding])
+        fig.update_yaxes(title_text='B [nT]', row=i + 1, col=3, title_font=dict(size=fontsize)) #, range=[min_b_data - y_range_padding, max_b_data + y_range_padding])
         fig.update_yaxes(showgrid=True, zeroline=False, showticklabels=True,
                         showspikes=True, spikemode='across', spikesnap='cursor', showline=False, spikedash='solid',
-                        spikethickness=1, row=i + 1, col=3)
+                        spikethickness=1, row=i + 1, col=3, tickfont=dict(size=fontsize))
         fig.update_xaxes(showgrid=True, zeroline=False, showticklabels=True, rangeslider_visible=False,
                         showspikes=True, spikemode='across', spikesnap='cursor', showline=False, spikedash='solid',
-                        spikethickness=1, row=i + 1, col=3)
+                        spikethickness=1, row=i + 1, col=3, tickfont=dict(size=fontsize))
+        
+        
+
 
 
     return fig

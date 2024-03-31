@@ -9,6 +9,7 @@ from typing import Union
 import numpy as np
 from heliosat.util import sanitize_dt
 from numba import guvectorize
+from scipy.optimize import least_squares
 
 import coreweb
 
@@ -165,6 +166,93 @@ class ToroidalModel(SimulationBlackBox):
             )
 
         return arr2.reshape((c, c, 3))
+    
+
+def visualize_fieldline(
+        self, q0, index=0, steps=1000, step_size=0.01, return_phi=False
+    ):
+        """Integrates along the magnetic field lines starting at a point q0 in (q) coordinates and
+        returns the field lines in (s) coordinates.
+        Parameters
+        ----------
+        q0 : np.ndarray
+            Starting point in (q) coordinates.
+        index : int, optional
+            Model run index, by default 0.
+        steps : int, optional
+            Number of integration steps, by default 1000.
+        step_size : float, optional
+            Integration step size, by default 0.01.
+        Returns
+        -------
+        np.ndarray
+            Integrated magnetic field lines in (s) coordinates.
+        """
+
+        _tva = np.empty((3,), dtype=self.dtype)
+        _tvb = np.empty((3,), dtype=self.dtype)
+
+        thin_torus_qs(
+            q0,
+            self.iparams_arr[index],
+            self.sparams_arr[index],
+            self.qs_xs[index],
+            _tva,
+        )
+
+        fl = [np.array(_tva, dtype=self.dtype)]
+        qc = [q0[2]]
+
+        def iterate(s):
+            thin_torus_sq(
+                s,
+                self.iparams_arr[index],
+                self.sparams_arr[index],
+                self.qs_sx[index],
+                _tva,
+            )
+            thin_torus_gh(
+                _tva,
+                self.iparams_arr[index],
+                self.sparams_arr[index],
+                self.qs_xs[index],
+                _tvb,
+            )
+
+            return _tvb / np.linalg.norm(_tvb)
+
+        while len(fl) < steps:
+            # use implicit method and least squares for calculating the next step
+            try:
+                sol = getattr(
+                    least_squares(
+                        lambda x: x
+                        - fl[-1]
+                        - step_size * iterate((x.astype(self.dtype) + fl[-1]) / 2),
+                        fl[-1],
+                    ),
+                    "x",
+                )
+                fl.append(np.array(sol.astype(self.dtype)))
+                thin_torus_sq(
+                    fl[-1],
+                    self.iparams_arr[index],
+                    self.sparams_arr[index],
+                    self.qs_sx[index],
+                    _tva,
+                )
+                qc.append(_tva[-1])
+            except Exception as e:
+                print(e)
+                break
+
+        fl = np.array(fl, dtype=self.dtype)
+        qc = np.array(qc, dtype=self.dtype)
+
+        if return_phi:
+            return fl, qc
+        else:
+            return fl
 
 
 @guvectorize(

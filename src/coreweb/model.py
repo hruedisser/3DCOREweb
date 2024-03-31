@@ -192,6 +192,14 @@ class SimulationBlackBox(object):
                 )
 
         generate_quaternions(self.iparams_arr, self.qs_sx, self.qs_xs) # quaternions are generated to rotate from s to x and back
+    
+    def overwrite(self, iparams_arr: np.ndarray) -> None:
+        if self.iparams_arr.shape != iparams_arr.shape:
+            raise ValueError("iparams array has invalid shape")
+
+        self.iparams_arr = iparams_arr
+
+        generate_quaternions(self.iparams_arr, self.qs_sx, self.qs_xs)
 
     def propagator(self, dt_to: Union[str, datetime.datetime]) -> None:
         # use propagator of model class
@@ -385,7 +393,8 @@ class SimulationBlackBox(object):
             self.iparams_meta[ii, 0] = iparam.get("active", 1)
 
             if iparam["maximum"] <= iparam["minimum"]:
-                raise ValueError("invalid parameter range selected")
+                raise ValueError("invalid parameter range selected for %s", k)
+
 
             if dist in ["fixed", "fixed_value"]:
                 if (
@@ -393,7 +402,9 @@ class SimulationBlackBox(object):
                     or iparam["default_value"] < iparam["minimum"]
                 ):
                     raise ValueError(
-                        "invalid parameter range selected, default_value out of range when using fixed distribution"
+                        "invalid parameter range selected for %s,"
+                        "default_value out of range when using fixed distribution",
+                        k,
                     )
 
                 self.iparams_meta[ii, 1] = 0
