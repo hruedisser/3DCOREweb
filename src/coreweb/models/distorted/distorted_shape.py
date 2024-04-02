@@ -6,7 +6,7 @@ import numba
 import numpy as np
 from numba import guvectorize
 
-from py3dcore.rotqs import _numba_quaternion_rotate
+from coreweb.rotqs import _numba_quaternion_rotate
 
 s_h = 0.00002
 

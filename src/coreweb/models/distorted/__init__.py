@@ -10,7 +10,7 @@ import numpy as np
 from heliosat.util import sanitize_dt
 from numba import guvectorize
 
-import py3dcore
+import coreweb
 
 from ...model import SimulationBlackBox
 from .distorted_shape import dgds, distorted_qs, distorted_sq_gh
