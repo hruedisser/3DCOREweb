@@ -1826,6 +1826,16 @@ def double_rope(pos_array, graph, rinput, lonput, latput, timeslider, launchlabe
         fig.add_trace(go.Scatter3d(x=fl[:,0], y=fl[:,1], z=fl[:,2], mode='lines',
                 line=dict(width=4, color=cmecolor),
                 showlegend=False), row=1, col=1)
+        
+        #fl2, qfl2 = model_obj.visualize_fieldline(q0=np.array([0.5, 0.05, 0.5]), index=0,  steps=10000, step_size=2e-3, return_phi=True)
+        #fig.add_trace(go.Scatter3d(x=fl2[:,0], y=fl2[:,1], z=fl2[:,2], mode='lines',
+        #        line=dict(width=4, color=cmecolor),
+        #        showlegend=False), row=1, col=1)
+        
+        diff = qfl[1:-10] - qfl[:-11]
+        #diff2 = qfl2[1:-10] - qfl2[:-11]
+        print("total turns estimates: ", np.sum(diff[diff > 0]) / np.pi / 2)#, np.sum(diff2[diff2 > 0]) / np.pi / 2)
+
 
 
     # Set the layout
