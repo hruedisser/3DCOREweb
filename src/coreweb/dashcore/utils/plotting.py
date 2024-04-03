@@ -14,6 +14,10 @@ import numpy as np
 import copy
 from scipy.optimize import least_squares
 
+import seaborn as sns
+
+import matplotlib.pyplot as plt
+
 import datetime
 
 def plot_insitu(names, t_data, b_data,view_legend_insitu):
@@ -1469,15 +1473,391 @@ def scatterparams(df):
     # drop first column
     df.drop(df.columns[[0]], axis=1, inplace=True)
 
-    # rename columns
-    #df.columns = ['lon', 'lat', 'inc', 'D1AU', 'delta', 'launch radius', 'launch speed', 't factor', 'expansion rate', 'B decay rate', 'B1AU', 'gamma', 'vsw']
+    g = sns.pairplot(df, 
+                     corner=True,
+                     plot_kws=dict(marker="+", linewidth=1)
+                    )
+    g.map_lower(sns.kdeplot, levels=[0.05, 0.32], color=".2") #  levels are 2-sigma and 1-sigma contours
+    plt.show()
+
+    return g
+
+
+def scatterparams_small(df):
+    
+    ''' returns scatterplots'''
+    
+    # drop first column
+    df.drop(df.columns[[0,7, 8,9,10]], axis=1, inplace=True)
 
     g = sns.pairplot(df, 
                      corner=True,
                      plot_kws=dict(marker="+", linewidth=1)
                     )
     g.map_lower(sns.kdeplot, levels=[0.05, 0.32], color=".2") #  levels are 2-sigma and 1-sigma contours
-    #g.savefig(path[:-7] + 'scatter_plot_matrix.pdf')
     plt.show()
 
-    return g
+
+def double_rope(pos_array, graph, rinput, lonput, latput, timeslider, launchlabel, plotoptions, spacecraftoptions, bodyoptions, insitu, view_legend_insitu, camera, posstore, *modelstatevars, figstore = None, addfield = False, cmecolor = 'rgba(100, 100, 100, 0.8)', framecolor = 'rgba(100, 100, 100, 0.8)', bg_color = 'rgba(0,0,0,0)',fontsize = 12,template = "none", opacity = .5):
+
+    if "dotted" in plotoptions:
+        dotted = "dot"
+    elif "dashed" in plotoptions:
+        dotted = "dash"
+    else:
+        dotted = None
+
+    sc = "SYN"        
+
+    if launchlabel == None:
+        roundedlaunch = datetime.datetime(2012,12,21,6)
+
+    else:
+        datetime_format = "Launch Time: %Y-%m-%d %H:%M"
+        #(launchlabel)
+        try:
+            t_launch = datetime.datetime.strptime(launchlabel, datetime_format)
+        except:
+            t_launch = datetime.datetime.strptime(launchlabel[0], datetime_format)
+
+        roundedlaunch = round_to_hour_or_half(t_launch) 
+        
+
+    iparams = get_iparams_live(*modelstatevars)
+    model_obj = coreweb.ToroidalModel(roundedlaunch, **iparams) # model gets initialized
+    model_obj.generator()  
+    
+    if figstore == None:
+
+        specs=[]
+        subtitles = []
+        specs.append([{"type": "scene", "rowspan": 2}])
+        specs.append([None])
+        subtitles.append(str(roundedlaunch + datetime.timedelta(hours=timeslider)))
+        
+        if "Title" in plotoptions:
+            fig = make_subplots(rows=2, cols=1, specs = specs, subplot_titles = subtitles)
+        else:
+            fig = make_subplots(rows=2, cols=1, specs = specs)  
+
+        if "Sun" in bodyoptions:
+
+            # Create data for the Sun
+            sun_trace = go.Scatter3d(
+                x=[0], y=[0], z=[0],
+                mode='markers',
+                marker=dict(size=4, color='yellow'),
+                name='Sun',
+                legendgroup = '1'
+            )
+
+            fig.add_trace(sun_trace, row=1, col=1)  
+
+        if "Earth" in bodyoptions:
+            try:
+                fig.add_trace(plot_body3d(graph['bodydata']['Earth']['data'], roundedlaunch + datetime.timedelta(hours=timeslider), 'mediumseagreen', 'Earth',legendgroup = '1')[0])
+            except Exception as e:
+                print('Data for Earth not found: ', e)
+                        
+        if "Mercury" in bodyoptions:
+            try:
+                fig.add_trace(plot_body3d(graph['bodydata']['Mercury']['data'], roundedlaunch + datetime.timedelta(hours=timeslider), 'slategrey', 'Mercury',legendgroup = '1')[0], row=1, col=1)
+            except Exception as e:
+                print('Data for Mercury not found: ', e)
+            
+            
+        if "Venus" in bodyoptions:
+            try:
+                fig.add_trace(plot_body3d(graph['bodydata']['Venus']['data'], roundedlaunch + datetime.timedelta(hours=timeslider), 'darkgoldenrod', 'Venus',legendgroup = '1')[0], row=1, col=1)
+            except Exception as e:
+                print('Data for Venus not found: ', e)    
+
+        if "Mars" in bodyoptions:
+            try:
+                fig.add_trace(plot_body3d(graph['bodydata']['Mars']['data'], roundedlaunch + datetime.timedelta(hours=timeslider), 'red', 'Mars',legendgroup = '1')[0], row=1, col=1)
+            except Exception as e:
+                print('Data for Mars not found: ', e)
+
+        if spacecraftoptions is not None:
+            for scopt in spacecraftoptions:
+                #try:
+                if scopt == "SYN":
+                    #try:
+                    #print(timeslider)
+
+                    resolution_t = t_data[1] - t_data[0]
+                    factors = int(60/resolution_t.total_seconds()*60)
+
+                    try:
+                        x,y,z = pos_array[factors*int(timeslider)] #sphere2cart(float(rinput), np.deg2rad(-float(latput)+90), np.deg2rad(float(lonput)))
+                    except TypeError:
+                        x,y,z = graph['pos_data'][0][0],graph['pos_data'][0][1],graph['pos_data'][0][2]
+                    
+                    fig.add_trace(
+                        go.Scatter3d(
+                            x=[x], y=[y], z=[z],
+                            mode='markers', 
+                            marker=dict(size=3, 
+                                        symbol='square',
+                                        color='red'),
+                            name="SYN",
+                            customdata=np.vstack((rinput, latput, lonput)).T,
+                            showlegend=True,
+                            legendgroup = '1',
+                            hovertemplate="<b>(x, y, z):</b> (%{x:.2f} AU, %{y:.2f} AU, %{z:.2f} AU)<br><b>(r, lon, lat):</b> (%{customdata[0]:.2f} AU, %{customdata[2]:.2f}°, %{customdata[1]:.2f}°)<extra>" 
+                         + scopt + "</extra>"
+                        ), row=1, col=1)
+                    
+
+                    try:
+                        fig.add_trace(
+                            go.Scatter3d(
+                                x=pos_array[:,0], y=pos_array[:,1], z=pos_array[:,2],
+                                mode='lines', 
+                                name="SYN",
+                                #customdata=np.vstack((rinput, latput, lonput)).T,
+                                showlegend=False,
+                                #legendgroup = '1',
+                                #hovertemplate="<b>(x, y, z):</b> (%{x:.2f} AU, %{y:.2f} AU, %{z:.2f} AU)<br><b>(r, lon, lat):</b> (%{customdata[0]:.2f} AU, %{customdata[2]:.2f}°, %{customdata[1]:.2f}°)<extra>" 
+                            #+ scopt + "</extra>"
+                            ), row=1, col=1)
+                    except:
+                        pass
+
+                else:                    
+                    traces = process_coordinates(posstore[scopt]['data']['data'], roundedlaunch, roundedlaunch + datetime.timedelta(hours=timeslider), posstore[scopt]['data']['color'], scopt, legendgroup='1')
+                    if "Trajectories" in plotoptions:
+                        fig.add_trace(traces[0], row=1, col=1)
+                        fig.add_trace(traces[1], row=1, col=1)
+
+                    fig.add_trace(traces[2], row=1, col=1)
+                #except Exception as e:
+                #    print('Data for ' + scopt + ' not found: ', e)
+        
+        if "Longitudinal Grid" in plotoptions:
+            # Create data for concentrical circles
+            circle_traces = []
+            radii = [0.3, 0.5, 0.8]  # Radii for the concentrical circles
+            for r in radii:
+                theta = np.linspace(0, 2 * np.pi, 100)
+                x = r * np.cos(theta)
+                y = r * np.sin(theta)
+                z = np.zeros_like(theta)
+                circle_trace = go.Scatter3d(
+                    x=x, y=y, z=z,
+                    mode='lines',
+                    line=dict(color=framecolor, dash=dotted),
+                    showlegend=False,
+                    hovertemplate = None, 
+                    hoverinfo = "skip", 
+                )
+                fig.add_trace(circle_trace, row=1, col=1)
+
+                # Add labels for the circles next to the line connecting Sun and Earth
+                label_x = 0 #r  # x-coordinate for label position
+                label_y = -r #0  # y-coordinate for label position
+                label_trace = go.Scatter3d(
+                    x=[label_x], y=[label_y], z=[0],
+                    mode='text',
+                    text=[f'{r} AU'],
+                    textposition='middle left',
+                    textfont=dict(size=fontsize),
+                    showlegend=False,
+                    hovertemplate = None, 
+                    hoverinfo = "skip", 
+                )
+                fig.add_trace(label_trace, row=1, col=1)
+
+            
+            
+            
+            
+            # Create data for the AU lines and their labels
+            num_lines = 8
+            for i in range(num_lines):
+                angle_degrees = -180 + (i * 45)  # Adjusted angle in degrees (-180 to 180)
+                angle_radians = np.deg2rad(angle_degrees)
+                x = [0, np.cos(angle_radians)]
+                y = [0, np.sin(angle_radians)]
+                z = [0, 0]
+                au_line = go.Scatter3d(
+                    x=x, y=y, z=z,
+                    mode='lines',
+                    line=dict(color=framecolor, dash=dotted),
+                    name=f'{angle_degrees}°',
+                    showlegend=False,
+                    hovertemplate = None, 
+                    hoverinfo = "skip", 
+                )
+                fig.add_trace(au_line, row=1, col=1)
+
+                # Add labels for the AU lines
+                label_x = 1.1 * np.cos(angle_radians)
+                label_y = 1.1 * np.sin(angle_radians)
+                label_trace = go.Scatter3d(
+                    x=[label_x], y=[label_y], z=[0],
+                    mode='text',
+                    text=[f'+/{angle_degrees}°' if angle_degrees == -180 else f'{angle_degrees}°'],
+                    textposition='middle center',
+                    textfont=dict(size=fontsize),
+                    showlegend=False,
+                    hovertemplate = None, 
+                    hoverinfo = "skip", 
+                )
+                fig.add_trace(label_trace, row=1, col=1)
+                
+        if "Latitudinal Grid" in plotoptions:
+            # Create data for concentrical circles
+            circle_traces = []
+            radii = [0.3, 0.5, 0.8]  # Radii for the concentrical circles
+            for r in radii:
+                theta = np.linspace(0, 1/2 * np.pi, 100)
+                x = r * np.cos(theta)
+                y = np.zeros_like(theta)
+                z = r * np.sin(theta)
+                circle_trace = go.Scatter3d(
+                    x=x, y=y, z=z,
+                    mode='lines',
+                    line=dict(color=framecolor, dash=dotted),
+                    showlegend=False,
+                    hovertemplate = None, 
+                    hoverinfo = "skip", 
+                )
+                fig.add_trace(circle_trace, row=1, col=1)
+
+                # Add labels for the circles next to the line connecting Sun and Earth
+                label_x = r  # x-coordinate for label position
+                label_y = 0  # y-coordinate for label position
+                label_trace = go.Scatter3d(
+                    x=[0], y=[0], z=[r],
+                    mode='text',
+                    text=[f'{r} AU'],
+                    textposition='middle left',
+                    textfont=dict(size=fontsize),
+                    showlegend=False,
+                    hovertemplate = None, 
+                    hoverinfo = "skip", 
+                )
+                fig.add_trace(label_trace, row=1, col=1)
+
+            # Create data for the AU lines and their labels
+            num_lines = 10
+            for i in range(num_lines):
+                angle_degrees = (i * 10)  # Adjusted angle in degrees (0 to 90)
+                angle_radians = np.deg2rad(angle_degrees)
+                x = [0, np.cos(angle_radians)]
+                y = [0, 0]
+                z = [0, np.sin(angle_radians)]
+                au_line = go.Scatter3d(
+                    x=x, y=y, z=z,
+                    mode='lines',
+                    line=dict(color=framecolor, dash=dotted),
+                    name=f'{angle_degrees}°',
+                    showlegend=False,
+                    hovertemplate = None, 
+                    hoverinfo = "skip", 
+                )
+                fig.add_trace(au_line, row=1, col=1)
+
+                # Add labels for the AU lines
+                label_x = 1.1 * np.cos(angle_radians)
+                label_y = 1.1 * np.sin(angle_radians)
+                label_trace = go.Scatter3d(
+                    x=[label_x], y=[0], z=[label_y],
+                    mode='text',
+                    text=[f'{angle_degrees}°'],
+                    textposition='middle center',
+                    textfont=dict(size=fontsize),
+                    showlegend=False,
+                    hovertemplate = None, 
+                    hoverinfo = "skip", 
+                )
+                fig.add_trace(label_trace, row=1, col=1)
+
+        if "Timer" in plotoptions:
+            if insitu:
+                fig.add_annotation(text=f"t_launch + {timeslider} h", xref="paper", yref="paper", x=0.5, y=1.05, showarrow=False) #, row=posrow, col=1)
+            else:
+                fig.add_annotation(text=f"t_launch + {timeslider} h", xref="paper", yref="paper", x=0.5, y=1.1, showarrow=False) #, row=posrow, col=1)
+        
+        if "Title" in plotoptions:
+            if insitu:
+                fig.add_annotation(text="HEEQ", xref="paper", yref="paper", x=1., y=0.51, showarrow=False) #, row=row, col=1)
+            else:
+                fig.add_annotation(text="HEEQ", xref="paper", yref="paper", x=1., y=0.01, showarrow=False) #, row=row, col=1)
+
+    else:
+
+        fig = figstore
+    
+    ############### POLAR THING ###################
+
+    model_obj.propagator(roundedlaunch + datetime.timedelta(hours=timeslider))
+            
+    wf_model = model_obj.visualize_shape(iparam_index=0)  
+            
+    wf_array = np.array(wf_model)
+
+    # Extract x, y, and z data from wf_array
+    x = wf_array[:,:,0].flatten()
+    y = wf_array[:,:,1].flatten()
+    z = wf_array[:,:,2].flatten()
+
+    # Create a 3D wireframe plot using plotly
+    fig.add_trace(go.Scatter3d(x=x, y=y, z=z, mode='lines',
+                    line=dict(width=1, color=cmecolor),
+                    showlegend=False), row=1, col=1)
+
+    # Transpose the wf_array to extract wireframe points along the other direction
+    x_wire = wf_array[:,:,0].T.flatten()
+    y_wire = wf_array[:,:,1].T.flatten()
+    z_wire = wf_array[:,:,2].T.flatten()
+
+    # Create another 3D wireframe plot using plotly
+    fig.add_trace(go.Scatter3d(x=x_wire, y=y_wire, z=z_wire, mode='lines', opacity=opacity,
+                    line=dict(width=.5, color=cmecolor),
+                    showlegend=False), row=1, col=1)
+            
+    if addfield == True:
+        print('Tracing Fieldlines')
+        q0=[0.9, .1, .5]
+        q0i =np.array(q0, dtype=np.float32)
+        fl, qfl = model_obj.visualize_fieldline(q0, index=0,  steps=10000, step_size=2e-3, return_phi=True)
+        fig.add_trace(go.Scatter3d(x=fl[:,0], y=fl[:,1], z=fl[:,2], mode='lines',
+                line=dict(width=4, color=cmecolor),
+                showlegend=False), row=1, col=1)
+
+
+    # Set the layout
+    fig.update_annotations(font_size=fontsize)
+    fig.update_layout(
+        template=template, 
+        plot_bgcolor=bg_color,  # Background color for the entire figure
+        scene=dict(
+            xaxis=dict(tickfont=dict(size=fontsize),showticklabels=False, showgrid=False, zeroline=False, showline=False, title = '',showspikes=False),
+            yaxis=dict(tickfont=dict(size=fontsize),showticklabels=False, showgrid=False, zeroline=False, showline=False, title = '', showspikes=False),
+            zaxis=dict(tickfont=dict(size=fontsize),showticklabels=False, showgrid=False, zeroline=False, showline=False, title = '', showspikes=False, range=[0, 0]),  # Adjust the range as needed
+            aspectmode='cube',
+            
+        bgcolor=bg_color
+        ),
+        legend=dict(font=dict(size=fontsize)) #, row=posrow, col=1
+    )
+    
+    
+    height = 700
+    
+    if camera != 'auto':
+        
+        camera = dict(
+            eye=dict(x=camera[0], y=camera[1], z=camera[2])
+        )
+        
+        fig.update_layout(height=height, width = 1000, showlegend=view_legend_insitu, scene_camera = camera)
+    else:
+        fig.update_layout(height=height, width = 1000, showlegend=view_legend_insitu)
+    
+    #fig.show()
+    return fig
+
+
