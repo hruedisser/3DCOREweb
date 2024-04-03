@@ -2,7 +2,7 @@ import os
 
 import numpy as np
 import pickle as p
-import pandas as pds
+import pandas as pd
 import seaborn as sns
 sns.set_style('whitegrid')
 sns.set_context('paper')
@@ -12,7 +12,7 @@ from datetime import timedelta
 import coreweb
 from .methods.method import BaseMethod
 
-from coreweb.dashcore.utils.utils import generate_ensemble
+from coreweb.dashcore.utils.utils import generate_ensemble, get_iparams_live, round_to_hour_or_half
 
 import heliosat
 
@@ -342,3 +342,388 @@ def fullinsitu(observer, t_fit=None, launchtime=None, start=None, end=None, t_s=
         
     plt.show()  
 
+def full3d(graph, timesnap, plotoptions, spacecraftoptions=['solo', 'psp'], bodyoptions=['Earth'], *modelstatevars, viewlegend = False, posstore = None, addfield = False, launchtime=None, 
+           title=True, view_azim=0, view_elev=45, view_radius=0.2, black = False, sc = 'SOLO'):
+    
+    """
+    Plots 3d.
+    
+    Parameters:
+        index        the index of the run with specific parameters
+    """
+    
+    c2 = 'blue'
+
+    #colors for 3dplots
+
+    earth_color='mediumseagreen'
+    #venus_color='orange'
+    #mercury_color='dimgrey'
+    #mars_color='orangered'
+
+    solo_color='coral'
+    wind_color='mediumseagreen'
+    psp_color='black'
+    #sta_color='red'
+    #bepi_color='blue' 
+
+    #earth_color='blue'
+    venus_color='orange'
+    mercury_color='grey'
+    sta_color='red'
+    bepi_color='coral' 
+
+    sns.set_context("talk")     
+
+    sns.set_style("ticks",{'grid.linestyle': '--'})
+    fsize=15
+
+    fig = plt.figure(figsize=(13,9),dpi=300)
+    if black==True:
+        ax = fig.add_subplot(111, projection='3d', facecolor='black')    
+    else:    
+        ax = fig.add_subplot(111, projection='3d')
+    
+    if "Sun" in bodyoptions:
+        plot_configure(ax, light_source= True, view_azim=view_azim, view_elev=view_elev, view_radius=view_radius)
+    else:
+        plot_configure(ax, view_azim=view_azim, view_elev=view_elev, view_radius=view_radius)
+
+    # model_obj = returnmodel(filepath)
+    iparams = get_iparams_live(*modelstatevars)
+    model_obj = coreweb.ToroidalModel(launchtime, **iparams) # model gets initialized
+    model_obj.generator()  
+
+    if sc == "SOLO":
+        cmecolor = solo_color
+    elif sc == 'PSP':
+        cmecolor = psp_color
+
+    plot_3dcore(ax, model_obj, timesnap, color=cmecolor)
+
+    if addfield == True:
+        plot_3dcore_field(ax, model_obj, timesnap, step_size=0.005, q0=[0.8, 0.1, np.pi/2],color=cmecolor)
+
+    if "Earth" in bodyoptions:
+        try:
+            plot_planet(ax, graph['bodydata']['Earth']['data'], timesnap, color=earth_color, alpha=0.9, label='Earth')
+        except Exception as e:
+            print('Data for Earth not found: ', e)
+
+    ### insert mercury
+    ### insert venus
+    ### insert mars
+            
+    if spacecraftoptions is not None:
+        for scopt in spacecraftoptions:
+            #try:
+            if scopt == "SYN":
+                pass
+            #insert SYN 
+            else:
+                plot_traj(ax, posstore[scopt]['data']['data'], launchtime, timesnap, posstore[scopt]['data']['color'], scopt)
+
+    if viewlegend == True:
+        ax.legend(loc='best')
+    if title == True:
+        plt.title(timesnap.strftime('%Y-%m-%d-%H-%M'))
+    
+    if "Longitudinal Grid" in plotoptions:
+        plot_longgrid(ax)
+
+    # #### still do   
+    
+    # if save_fig == True:
+    #     plt.savefig(save_file + '.pdf', dpi=300)  
+        
+    
+    return fig, ax
+
+
+def add_cme(ax, graph, timesnap, *modelstatevars, addfield = False, launchtime=None, sc = 'SOLO'):
+    
+    solo_color='coral'
+    psp_color='black'
+    sta_color='red'
+    bepi_color='coral' 
+
+    # model_obj = returnmodel(filepath)
+    iparams = get_iparams_live(*modelstatevars)
+    model_obj = coreweb.ToroidalModel(launchtime, **iparams) # model gets initialized
+    model_obj.generator()  
+
+    if sc == "SOLO":
+        cmecolor = solo_color
+    elif sc == 'PSP':
+        cmecolor = psp_color
+
+    plot_3dcore(ax, model_obj, timesnap, color=cmecolor)
+
+    if addfield == True:
+        plot_3dcore_field(ax, model_obj, timesnap, step_size=0.005, q0=[0.8, 0.1, np.pi/2],color=cmecolor)
+
+    return ax
+
+def plot_traj(ax, data_list, date, nowdate, color, sc, **kwargs):
+
+
+    nowdate = round_to_hour_or_half(nowdate.replace(tzinfo=None))
+    date = date.replace(tzinfo=None)
+
+    kwargs["alpha"] = kwargs.pop("alpha", 1)
+    #color = kwargs.pop("color", "k")
+    kwargs["lw"] = kwargs.pop("lw", 1)
+    kwargs["s"] = kwargs.pop("s", 15)
+    
+    try:
+        data = np.array(data_list, dtype=[('time', 'O'), ('r', '<f8'), ('lon', '<f8'), ('lat', '<f8'), ('x', '<f8'), ('y', '<f8'), ('z', '<f8')])
+    except:
+        # Convert string dates to datetime objects
+        try:
+            # Define the dtype for the structured array
+            dtype = [('time', 'O'), ('r', '<f8'), ('lon', '<f8'), ('lat', '<f8'), ('x', '<f8'), ('y', '<f8'), ('z', '<f8')]
+
+            # Create an empty structured array
+            data = np.empty(len(data_list), dtype=dtype)
+
+            # Populate the structured array
+            for i, row in enumerate(data_list):
+                data[i] = tuple(row)
+        except Exception as e:
+            print(e)
+
+    df_columns = ['time', 'r', 'lon', 'lat', 'x', 'y', 'z']
+    df = pd.DataFrame(data, columns=df_columns)
+        
+    df['time'] = pd.to_datetime(df['time'])  # Convert time column to datetime objects
+    
+    # Filter data based on date and nowdate
+    filtered_data = df[(df['time'] >= date) & (df['time'] <= date + datetime.timedelta(days=7))]
+
+    # Split data into past, future, and now coordinates
+    past_data = filtered_data[filtered_data['time'] < nowdate]
+    future_data = filtered_data[filtered_data['time'] > nowdate]
+    now_data = filtered_data[filtered_data['time'] == nowdate]
+
+    # Extract coordinates for each category
+    x_past, y_past, z_past, times_past = past_data['x'], past_data['y'], past_data['z'], past_data['time']
+    x_future, y_future, z_future, times_future = future_data['x'], future_data['y'], future_data['z'], future_data['time']
+    x_now, y_now, z_now, now_time = now_data['x'], now_data['y'], now_data['z'], now_data['time']
+    
+    r_past, lon_past, lat_past = past_data['r'], past_data['lon'], past_data['lat']
+    r_future, lon_future, lat_future = future_data['r'], future_data['lon'], future_data['lat']
+    r_now, lon_now, lat_now = now_data['r'], now_data['lon'], now_data['lat']
+    
+    # Convert Timestamp Series to a list of Timestamps
+    times_past_list = times_past.tolist()
+    times_future_list = times_future.tolist()
+    times_now_list = now_time.tolist()
+        
+    # Convert Timestamps to formatted strings
+    times_past_str = [time.strftime("%Y-%m-%d %H:%M:%S") for time in times_past_list]
+    times_future_str = [time.strftime("%Y-%m-%d %H:%M:%S") for time in times_future_list]
+    now_time_str = [time.strftime("%Y-%m-%d %H:%M:%S") for time in times_now_list]
+    
+    _s = kwargs.pop("s")
+
+    ax.scatter(xs=x_now, ys=y_now, zs=z_now, color=color, label=sc, s=_s, marker='s', **kwargs)
+
+    ax.plot(xs=x_past, ys=y_past, zs=z_past,color=color, **kwargs)
+
+    _ls = "--"
+    _lw = kwargs.pop("lw") / 2
+
+    ax.plot(xs=x_future, ys=y_future, zs=z_future, ls=_ls, lw=_lw, **kwargs)
+
+
+
+def plot_3dcore(ax, obj, t_snap, light_source=False, **kwargs):
+    kwargs["alpha"] = kwargs.pop("alpha", .15)
+    kwargs["color"] = kwargs.pop("color", "k")
+    kwargs["lw"] = kwargs.pop("lw", 1)
+
+    if light_source == False:
+        # draw Sun
+        ax.scatter(0, 0, 0, color="y", s=20) 
+        
+    obj.propagator(t_snap)
+    wf_model = obj.visualize_shape(iparam_index=0)  
+
+    wf_array = np.array(wf_model)
+
+    # Extract x, y, and z data from wf_array
+    x = wf_array[:,:,0].flatten()
+    y = wf_array[:,:,1].flatten()
+    z = wf_array[:,:,2].flatten()
+    ax.plot_wireframe(*wf_model.T, **kwargs) 
+
+
+def plot_3dcore_field(ax, obj, t_snap, step_size=0.005, q0=[0.8, 0.1, np.pi/2],**kwargs):
+    print('Tracing Fieldlines')
+    q0=[0.9, .1, .5]
+    q0i =np.array(q0, dtype=np.float32)
+    obj.propagator(t_snap)
+    fl, qfl = obj.visualize_fieldline(q0, index=0,  steps=10000, step_size=2e-3, return_phi=True)
+    ax.plot(*fl.T, **kwargs)
+
+    diff = qfl[1:-10] - qfl[:-11]
+    print("total turns estimates: ", np.sum(diff[diff > 0]) / np.pi / 2)#, np.sum(diff2[diff2 > 0]) / np.pi / 2)
+
+
+
+def visualize_fieldline(obj, q0, index=0, steps=1000, step_size=0.01):
+        print('visualize_fieldline')
+        """Integrates along the magnetic field lines starting at a point q0 in (q) coordinates and
+        returns the field lines in (s) coordinates.
+
+        Parameters
+        ----------
+        q0 : np.ndarray
+            Starting point in (q) coordinates.
+        index : int, optional
+            Model run index, by default 0.
+        steps : int, optional
+            Number of integration steps, by default 1000.
+        step_size : float, optional
+            Integration step size, by default 0.01.
+
+        Returns
+        -------
+        np.ndarray
+            Integrated magnetic field lines in (s) coordinates.
+        """
+
+        _tva = np.empty((3,), dtype=obj.dtype)
+        _tvb = np.empty((3,), dtype=obj.dtype)
+
+        thin_torus_qs(q0, obj.iparams_arr[index], obj.sparams_arr[index], obj.qs_xs[index], _tva)
+
+        fl = [np.array(_tva, dtype=obj.dtype)]
+        def iterate(s):
+            thin_torus_sq(s, obj.iparams_arr[index], obj.sparams_arr[index], obj.qs_sx[index],_tva)
+            thin_torus_gh(_tva, obj.iparams_arr[index], obj.sparams_arr[index], obj.qs_xs[index], _tvb)
+            return _tvb / np.linalg.norm(_tvb)
+
+        while len(fl) < steps:
+            # use implicit method and least squares for calculating the next step
+            try:
+                sol = getattr(least_squares(
+                    lambda x: x - fl[-1] - step_size *
+                    iterate((x.astype(obj.dtype) + fl[-1]) / 2),
+                    fl[-1]), "x")
+
+                fl.append(np.array(sol.astype(obj.dtype)))
+            except Exception as e:
+                break
+
+        fl = np.array(fl, dtype=obj.dtype)
+
+        return fl
+        
+    
+def plot_circle(ax, dist, color=None, **kwargs):        
+
+    thetac = np.linspace(0, 2 * np.pi, 100)
+    xc = dist * np.sin(thetac)
+    yc = dist * np.cos(thetac)
+    zc = 0
+    ax.plot(xc, yc, zc, ls='--', color=color, lw=0.3, **kwargs)
+
+def plot_longgrid(ax, fontsize=6, color = 'k'):
+
+    radii = [0.3, 0.5, 0.8]
+    
+    for r in radii:
+        plot_circle(ax, r, color=color)
+        ax.text(x = -0.02, y = r + 0.02, z = 0, s = f'{r} AU', fontsize = fontsize) 
+
+    # Create data for the AU lines and their labels
+    num_lines = 8
+    for i in range(num_lines):
+        angle_degrees = -180 + (i * 45)  # Adjusted angle in degrees (-180 to 180)
+        angle_radians = np.deg2rad(angle_degrees)
+        x = [0, np.cos(angle_radians)]
+        y = [0, np.sin(angle_radians)]
+        z = [0, 0]
+
+        ax.plot(x, y, z, ls='--', color=color, lw=0.3)
+
+        label_x = 1.1 * np.cos(angle_radians)
+        label_y = 1.1 * np.sin(angle_radians)
+
+        ax.text(x = label_x, y = label_y, z = 0, s = f'+/{angle_degrees}°' if angle_degrees == -180 else f'{angle_degrees}°', fontsize = fontsize) 
+
+    
+
+    
+    
+def plot_planet(ax, data_list, nowdate, **kwargs):
+    
+    nowdate = round_to_hour_or_half(nowdate.replace(tzinfo=None))
+
+    try:
+        data = np.array(data_list, dtype=[('time', 'O'), ('r', '<f8'), ('lon', '<f8'), ('lat', '<f8'), ('x', '<f8'), ('y', '<f8'), ('z', '<f8')])
+    except:
+        # Convert string dates to datetime objects
+        try:
+            # Define the dtype for the structured array
+            dtype = [('time', 'O'), ('r', '<f8'), ('lon', '<f8'), ('lat', '<f8'), ('x', '<f8'), ('y', '<f8'), ('z', '<f8')]
+
+            # Create an empty structured array
+            data = np.empty(len(data_list), dtype=dtype)
+
+            # Populate the structured array
+            for i, row in enumerate(data_list):
+                data[i] = tuple(row)
+        except Exception as e:
+            print(e)
+
+    df_columns = ['time', 'r', 'lon', 'lat', 'x', 'y', 'z']
+    df = pd.DataFrame(data, columns=df_columns)
+    
+    df['time'] = pd.to_datetime(df['time'])  # Convert time column to datetime objects
+    # Filter data based on date and nowdate
+    now_data = df[df['time']== nowdate]
+    #print(now_data)
+    x_now, y_now, z_now, now_time = now_data['x'], now_data['y'], now_data['z'], now_data['time']
+    r_now, lon_now, lat_now = now_data['r'], now_data['lon'], now_data['lat']
+    
+    times_now_list = now_time.tolist()
+
+    now_time_str = [time.strftime("%Y-%m-%d %H:%M:%S") for time in times_now_list]
+    ax.scatter3D(x_now, y_now, z_now, s=10, **kwargs)
+    ax.scatter3D(0.3, 0, 0, s=10, **kwargs)
+    
+    
+def plot_configure(ax, light_source=False, **kwargs):
+    view_azim = kwargs.pop("view_azim", -25)
+    view_elev = kwargs.pop("view_elev", 25)
+    view_radius = kwargs.pop("view_radius", .5)
+    
+    ax.view_init(azim=view_azim, elev=view_elev)
+
+    ax.set_xlim([-view_radius, view_radius])
+    ax.set_ylim([-view_radius, view_radius])
+    ax.set_zlim([-view_radius, view_radius])
+    
+    if light_source == True:
+        #draw sun        
+        ls = LightSource(azdeg=320, altdeg=40)  
+        ax.plot_surface(x, y, z, rstride=1, cstride=1, color='yellow', lightsource=ls, linewidth=0, antialiased=False, zorder=5)
+    
+    ax.set_axis_off()
+    
+    
+def plot_shift(axis, extent, cx, cy, cz):
+    #shift center of plot
+    axis.set_xbound(cx - extent, cx + extent)
+    axis.set_ybound(cy - extent, cy + extent)
+    axis.set_zbound(cz - extent * 0.75, cz + extent * 0.75)
+    
+#define sun here so it does not need to be recalculated every time
+scale = 695510 / 149597870.700 #Rs in km, AU in km
+# sphere with radius Rs in AU
+u, v = np.mgrid[0:2*np.pi:40j, 0:np.pi:30j]
+x = np.cos(u) * np.sin(v) * scale
+y = np.sin(u) * np.sin(v) * scale
+z = np.cos(v) * scale    
