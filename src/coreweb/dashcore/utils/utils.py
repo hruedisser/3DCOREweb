@@ -1748,7 +1748,17 @@ def load_fit(name, graph):
     resepses = data["epses"]
     num_rows = min(len(resepses), len(resdf))
     resdf.insert(0, 'RMSE Ɛ', resepses[:num_rows])
-    
+
+    # Calculate Twist number
+
+    delta = resdf["Aspect Ratio"].values
+    h = (delta - 1) ** 2 / (1 + delta) ** 2
+    Efac = np.pi * (1 + delta) * (1 + 3 * h / (10 + np.sqrt(4 - 3 * h)))
+
+    twist = resdf["T_Factor"].values / Efac
+
+    resdf.insert(len(resdf.columns), 'Number of Twists', twist[:num_rows])      
+
     resdf['Launch Time'] = t0.strftime("%Y-%m-%d %H:%M")
 
     
