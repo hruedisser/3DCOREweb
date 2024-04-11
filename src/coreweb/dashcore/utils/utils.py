@@ -1970,7 +1970,7 @@ def generate_ensemble(path: str, dt: datetime.datetime, posdata, reference_frame
 
     # simulate flux ropes using iparams from loaded fitter
     ensemble = np.squeeze(np.array(ftobj.model_obj.simulator(dt, posdata)[0]))
-    #print(dt)
+    print(posdata)
     # how much to keep of the generated ensemble
     if max_index is None:
         max_index = ensemble.shape[1]
@@ -1992,6 +1992,11 @@ def generate_ensemble(path: str, dt: datetime.datetime, posdata, reference_frame
             sys.stdout.write(f"\r{k+1}/{ensemble.shape[1]}")
             sys.stdout.flush()
             bx,by,bz = hc.separate_components(ensemble[:, k, :])
+            #plt.figure()
+            #plt.plot(bx)
+            #plt.plot(by)
+            #plt.plot(bz)
+            #plt.show()
 
             rtn_bx, rtn_by, rtn_bz = hc.convert_HEEQ_to_RTN_mag(x,y,z, bx,by,bz, printer = False)
             

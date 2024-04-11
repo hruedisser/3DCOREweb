@@ -13,6 +13,8 @@ import coreweb
 from .methods.method import BaseMethod
 
 from coreweb.dashcore.utils.utils import generate_ensemble, get_iparams_live, round_to_hour_or_half
+from coreweb.methods.offwebutils import extract_row
+import coreweb.dashcore.utils.heliocats as hc
 
 import heliosat
 
@@ -194,7 +196,7 @@ def fullinsitu(observer, t_fit=None, launchtime=None, start=None, end=None, t_s=
     
     if best == True:
         iparams = get_iparams_live(*extract_row(row))
-        print(iparams)
+        #print(iparams)
         model_obj = coreweb.ToroidalModel(launchtime, **iparams) # model gets initialized
         model_obj.generator()  
 
@@ -203,11 +205,14 @@ def fullinsitu(observer, t_fit=None, launchtime=None, start=None, end=None, t_s=
         outa = np.squeeze(outa[0])
         if ref_frame != "HEEQ":
             x,y,z = hc.separate_components(graph['pos_data'])
-            print(x,y,z)
+            #print(x,y,z)
             rtn_bx, rtn_by, rtn_bz = hc.convert_HEEQ_to_RTN_mag(x,y,z, outa[:, 0], outa[:, 1], outa[:, 2])
-            outa[:, 0],outa[:, 1],outa[:, 2] = rtn_bx, rtn_by, rtn_bz
-                        
-            
+            outa[:, 0],outa[:, 1],outa[:, 2] = rtn_bx, rtn_by, rtn_bz        
+            if np.any(rtn_bx > 1500) or np.any(rtn_by > 1500) or np.any(rtn_bz > 1500):
+                print(iparams)
+                #return
+            else:
+                return
         outa[outa==0] = np.nan
 
     if mean == True:
@@ -328,6 +333,7 @@ def fullinsitu(observer, t_fit=None, launchtime=None, start=None, end=None, t_s=
     plt.axvline(x=t_s, lw=lw_fitp, alpha=0.75, color="k", ls="-.")
     plt.axvline(x=t_e, lw=lw_fitp, alpha=0.75, color="k", ls="-.")
     
+    plt.grid(color = 'lightgrey')
 
     if legend == True:
         plt.legend(loc='lower right', ncol=2)
@@ -343,7 +349,7 @@ def fullinsitu(observer, t_fit=None, launchtime=None, start=None, end=None, t_s=
     plt.show()  
 
 def full3d(graph, timesnap, plotoptions, spacecraftoptions=['solo', 'psp'], bodyoptions=['Earth'], *modelstatevars, viewlegend = False, posstore = None, addfield = False, launchtime=None, 
-           title=True, view_azim=0, view_elev=45, view_radius=0.2, black = False, sc = 'SOLO'):
+           title=False, view_azim=0, view_elev=45, view_radius=0.2, black = False, sc = 'SOLO', fontsize = 8):
     
     """
     Plots 3d.
@@ -402,7 +408,7 @@ def full3d(graph, timesnap, plotoptions, spacecraftoptions=['solo', 'psp'], body
     plot_3dcore(ax, model_obj, timesnap, color=cmecolor)
 
     if addfield == True:
-        plot_3dcore_field(ax, model_obj, timesnap, step_size=0.005, q0=[0.8, 0.1, np.pi/2],color=cmecolor)
+        plot_3dcore_field(ax, model_obj, timesnap, step_size=0.005, q0=[0.8, 0.1, np.pi/2],color=cmecolor, alpha = .95, lw = .8)
 
     if "Earth" in bodyoptions:
         try:
@@ -424,12 +430,12 @@ def full3d(graph, timesnap, plotoptions, spacecraftoptions=['solo', 'psp'], body
                 plot_traj(ax, posstore[scopt]['data']['data'], launchtime, timesnap, posstore[scopt]['data']['color'], scopt)
 
     if viewlegend == True:
-        ax.legend(loc='best')
+        ax.legend(loc='best', fontsize = fontsize)
     if title == True:
         plt.title(timesnap.strftime('%Y-%m-%d-%H-%M'))
     
     if "Longitudinal Grid" in plotoptions:
-        plot_longgrid(ax)
+        plot_longgrid(ax, fontsize=fontsize)
 
     # #### still do   
     
@@ -460,7 +466,7 @@ def add_cme(ax, graph, timesnap, *modelstatevars, addfield = False, launchtime=N
     plot_3dcore(ax, model_obj, timesnap, color=cmecolor)
 
     if addfield == True:
-        plot_3dcore_field(ax, model_obj, timesnap, step_size=0.005, q0=[0.8, 0.1, np.pi/2],color=cmecolor)
+        plot_3dcore_field(ax, model_obj, timesnap, step_size=0.005, q0=[0.8, 0.1, np.pi/2],color=cmecolor, alpha = .95, lw = .8)
 
     return ax
 
@@ -472,7 +478,7 @@ def plot_traj(ax, data_list, date, nowdate, color, sc, **kwargs):
 
     kwargs["alpha"] = kwargs.pop("alpha", 1)
     #color = kwargs.pop("color", "k")
-    kwargs["lw"] = kwargs.pop("lw", 1)
+    kwargs["lw"] = kwargs.pop("lw", .9)
     kwargs["s"] = kwargs.pop("s", 15)
     
     try:
@@ -528,12 +534,12 @@ def plot_traj(ax, data_list, date, nowdate, color, sc, **kwargs):
 
     ax.scatter(xs=x_now, ys=y_now, zs=z_now, color=color, label=sc, s=_s, marker='s', **kwargs)
 
-    ax.plot(xs=x_past, ys=y_past, zs=z_past,color=color, **kwargs)
+    ax.plot(xs=x_past, ys=y_past, zs=z_past, color=color, **kwargs)
 
     _ls = "--"
-    _lw = kwargs.pop("lw") / 2
+    _lw = kwargs.pop("lw") * 0.7
 
-    ax.plot(xs=x_future, ys=y_future, zs=z_future, ls=_ls, lw=_lw, **kwargs)
+    ax.plot(xs=x_future, ys=y_future, zs=z_future, ls=_ls, lw=_lw, color=color) #, **kwargs)
 
 
 

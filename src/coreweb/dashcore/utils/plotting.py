@@ -208,6 +208,7 @@ def check_animation(pos_array, results, plottheme, graph, reference_frame, rinpu
 
     if "Synthetic Event" in plotoptions:
         iparams = get_iparams_live(*modelstatevars)
+        #print(iparams)
         model_obj = coreweb.ToroidalModel(roundedlaunch, **iparams) # model gets initialized
         model_obj.generator()  
         
@@ -335,13 +336,13 @@ def check_animation(pos_array, results, plottheme, graph, reference_frame, rinpu
                 
                 q0=[0.8, .1, np.pi/2]
                 q0i =np.array(q0, dtype=np.float32)
-                fl = visualize_fieldline(model_obj, q0, index=0, steps=8000, step_size=0.005)
+                fl = model_obj.visualize_fieldline(q0, index=0, steps=8000, step_size=0.005)
                 fig.add_trace(go.Scatter3d(x=fl[:,0], y=fl[:,1], z=fl[:,2], mode='lines',
                         line=dict(width=4, color='red'),
                         showlegend=True,
                         name='Field line (T' + u"\u03c4 = 245)",
                         legendgroup = '1'), row=posrow, col=1)
-                fl2 = visualize_fieldline(model_obj2, q0, index=0, steps=8000, step_size=0.005)
+                fl2 = model_obj2.visualize_fieldline(q0, index=0, steps=8000, step_size=0.005)
                 fig.add_trace(go.Scatter3d(x=fl2[:,0], y=fl2[:,1], z=fl2[:,2], mode='lines',
                         line=dict(width=4, color='blue'),
                         showlegend=True,
@@ -642,7 +643,7 @@ def check_animation(pos_array, results, plottheme, graph, reference_frame, rinpu
                 xaxis=dict(tickfont=dict(size=fontsize),showticklabels=False, showgrid=False, zeroline=False, showline=False, title = '',showspikes=False),
                 yaxis=dict(tickfont=dict(size=fontsize),showticklabels=False, showgrid=False, zeroline=False, showline=False, title = '', showspikes=False),
                 zaxis=dict(tickfont=dict(size=fontsize),showticklabels=False, showgrid=False, zeroline=False, showline=False, title = '', showspikes=False, range=[0, 0]),  # Adjust the range as needed
-                aspectmode='cube',
+                aspectmode='data',
                 
             bgcolor=bg_color
             ),
@@ -895,8 +896,8 @@ def check_animation(pos_array, results, plottheme, graph, reference_frame, rinpu
                 'type': 'rect',
                 'x0': roundedlaunch + datetime.timedelta(hours=timeslider),
                 'x1': roundedlaunch + datetime.timedelta(hours=timeslider),
-                'y0': -100,  # Adjust the y0 and y1 values as needed
-                'y1': 100,
+                'y0': -800,  # Adjust the y0 and y1 values as needed
+                'y1': 800,
                 'fillcolor': "Red",
                 'line': dict(color="Red", width=2), #, width=3, dash='dot'),
                 'type' : 'line',
@@ -1847,7 +1848,7 @@ def double_rope(pos_array, graph, rinput, lonput, latput, timeslider, launchlabe
             xaxis=dict(tickfont=dict(size=fontsize),showticklabels=False, showgrid=False, zeroline=False, showline=False, title = '',showspikes=False),
             yaxis=dict(tickfont=dict(size=fontsize),showticklabels=False, showgrid=False, zeroline=False, showline=False, title = '', showspikes=False),
             zaxis=dict(tickfont=dict(size=fontsize),showticklabels=False, showgrid=False, zeroline=False, showline=False, title = '', showspikes=False, range=[0, 0]),  # Adjust the range as needed
-            aspectmode='cube',
+            aspectmode='data',
             
         bgcolor=bg_color
         ),

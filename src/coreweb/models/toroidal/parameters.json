@@ -41,7 +41,7 @@
         "index": 4,
         "name": "diameter",
         "distribution": "uniform",
-        "maximum": 0.35, 
+        "maximum": 0.5, 
         "minimum": 0.05,
         "boundary": "continuous",
         "label": "d_{1au}"
@@ -118,7 +118,7 @@
         "index": 12,
         "name": "background drag",
         "distribution": "uniform",
-        "maximum": 3,
+        "maximum": 4,
         "minimum": 0.2,
         "boundary": "continuous",
         "label": "\\gamma"
