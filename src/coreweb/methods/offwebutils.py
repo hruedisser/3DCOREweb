@@ -46,8 +46,8 @@ def signaturecheckfull(many_lats, many_lons, model_obj, rinput, savedir, checkan
     gridline_color = 'rgba(0, 0, 0, 0.3)'  # Define the color of gridlines
     trace_width = 4  # Define the width of traces
     
-    onward = 2800 
-    toward = -800 if len(many_lons) > 4 else -3800
+    onward = 3000 #2800 
+    toward = -1000 if len(many_lons) > 4 else -4000
 
     names = ['Br', 'Bt', 'Bn', 'Btot']
     line_colors =['#c20078','#f97306', '#069af3', '#000000']
@@ -234,7 +234,7 @@ def signaturecheck(many_lats,many_lons,model_obj, rinput, savedir, checkanimany)
             for trace in insitufig.data:
                 fig.add_trace(trace, row=k+1, col=1)
 
-            fig.update_yaxes(title_text='B [nT]', row=k+1, col=1, range = [-60,60], tickvals=np.arange(-60, 80, 20))
+            fig.update_yaxes(title_text='B [nT]', row=k+1, col=1 ) #, range = [-60,60], tickvals=np.arange(-60, 80, 20))
             fig.update_annotations(font_size=6, row=k+1, col=1)
         # Update layout for the main figure
         fig.update_layout(title=f'Longitude: {lon}°' , showlegend=True, height= total_height)

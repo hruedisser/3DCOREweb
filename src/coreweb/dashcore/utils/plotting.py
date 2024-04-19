@@ -138,7 +138,7 @@ def get_longmove_array(longmove, rinput, lonput, latput, graph):
 
 
 
-def check_animation(pos_array, results, plottheme, graph, reference_frame, rinput, lonput, latput, timeslider, infodata, launchlabel, plotoptions, spacecraftoptions, bodyoptions, insitu, positions, view_legend_insitu, camera, posstore, *modelstatevars, addfield = False):
+def check_animation(pos_array, results, plottheme, graph, reference_frame, rinput, lonput, latput, timeslider, infodata, launchlabel, plotoptions, spacecraftoptions, bodyoptions, insitu, positions, view_legend_insitu, camera, posstore, *modelstatevars, addfield = False, secondfield = None):
     template = "none"
     bg_color = 'rgba(0, 0,0, 0)'
     line_color = 'white'
@@ -322,12 +322,13 @@ def check_animation(pos_array, results, plottheme, graph, reference_frame, rinpu
                 fieldlons = [.1, .3, .5, .8]
                 pifacs = [1, 2, 4]
 
-                twist2_params = copy.deepcopy(iparams)  # Perform a deep copy of iparams
-                twist2_params['iparams']['t_factor']['default_value'] = 25.
-                model_obj2 = coreweb.ToroidalModel(roundedlaunch, **twist2_params) # model gets initialized
-                model_obj2.generator() 
-                model_obj2.propagator(roundedlaunch + datetime.timedelta(hours=timeslider))
-            
+                if secondfield is not None:
+                    twist2_params = copy.deepcopy(iparams)  # Perform a deep copy of iparams
+                    twist2_params['iparams']['t_factor']['default_value'] = secondfield
+                    model_obj2 = coreweb.ToroidalModel(roundedlaunch, **twist2_params) # model gets initialized
+                    model_obj2.generator() 
+                    model_obj2.propagator(roundedlaunch + datetime.timedelta(hours=timeslider))
+                
                 #print(model_obj.iparams)
 
                 #for fr in fieldradii:
@@ -336,18 +337,24 @@ def check_animation(pos_array, results, plottheme, graph, reference_frame, rinpu
                 
                 q0=[0.8, .1, np.pi/2]
                 q0i =np.array(q0, dtype=np.float32)
-                fl = model_obj.visualize_fieldline(q0, index=0, steps=8000, step_size=0.005)
+                fl, qfl = model_obj.visualize_fieldline(q0, index=0, steps=8000, step_size=0.005, return_phi=True)
                 fig.add_trace(go.Scatter3d(x=fl[:,0], y=fl[:,1], z=fl[:,2], mode='lines',
                         line=dict(width=4, color='red'),
                         showlegend=True,
                         name='Field line (T' + u"\u03c4 = 245)",
                         legendgroup = '1'), row=posrow, col=1)
-                fl2 = model_obj2.visualize_fieldline(q0, index=0, steps=8000, step_size=0.005)
-                fig.add_trace(go.Scatter3d(x=fl2[:,0], y=fl2[:,1], z=fl2[:,2], mode='lines',
-                        line=dict(width=4, color='blue'),
-                        showlegend=True,
-                        name='Field line (T' + u"\u03c4 = 25)",
-                        legendgroup = '1'), row=posrow, col=1)
+
+                if secondfield is not None:
+                    fl2,qfl2 = model_obj2.visualize_fieldline(q0, index=0, steps=8000, step_size=0.005, return_phi= True)
+                    fig.add_trace(go.Scatter3d(x=fl2[:,0], y=fl2[:,1], z=fl2[:,2], mode='lines',
+                            line=dict(width=4, color='blue'),
+                            showlegend=True,
+                            name='Field line (T' + u"\u03c4 = " + str(secondfield) + ")",
+                            legendgroup = '1'), row=posrow, col=1)
+                    diff = qfl[1:-10] - qfl[:-11]
+                    diff2 = qfl2[1:-10] - qfl2[:-11]
+                    print("total turns estimates: ", np.sum(diff[diff > 0]) / np.pi / 2, np.sum(diff2[diff2 > 0]) / np.pi / 2)
+
             
         if "Catalog Event" in plotoptions:
             roundedbegin = round_to_hour_or_half(begin) 
@@ -643,7 +650,7 @@ def check_animation(pos_array, results, plottheme, graph, reference_frame, rinpu
                 xaxis=dict(tickfont=dict(size=fontsize),showticklabels=False, showgrid=False, zeroline=False, showline=False, title = '',showspikes=False),
                 yaxis=dict(tickfont=dict(size=fontsize),showticklabels=False, showgrid=False, zeroline=False, showline=False, title = '', showspikes=False),
                 zaxis=dict(tickfont=dict(size=fontsize),showticklabels=False, showgrid=False, zeroline=False, showline=False, title = '', showspikes=False, range=[0, 0]),  # Adjust the range as needed
-                aspectmode='data',
+                aspectmode='cube',
                 
             bgcolor=bg_color
             ),
@@ -791,12 +798,15 @@ def check_animation(pos_array, results, plottheme, graph, reference_frame, rinpu
             
         if "Synthetic Event" in plotoptions:
 
+            #for pod in graph['pos_data']:
+            #    print(pod)
+                
             
             # Create ndarray with dtype=object to handle ragged nested sequences
             if sc == "SYN":
                 try:
                     outa = np.array(model_obj.simulator(graph['t_data'], pos_array), dtype=object)
-                    print(graph['t_data'])
+                    #print(graph['t_data'])
                     
                 
                 except Exception as e:
@@ -1848,7 +1858,7 @@ def double_rope(pos_array, graph, rinput, lonput, latput, timeslider, launchlabe
             xaxis=dict(tickfont=dict(size=fontsize),showticklabels=False, showgrid=False, zeroline=False, showline=False, title = '',showspikes=False),
             yaxis=dict(tickfont=dict(size=fontsize),showticklabels=False, showgrid=False, zeroline=False, showline=False, title = '', showspikes=False),
             zaxis=dict(tickfont=dict(size=fontsize),showticklabels=False, showgrid=False, zeroline=False, showline=False, title = '', showspikes=False, range=[0, 0]),  # Adjust the range as needed
-            aspectmode='data',
+            aspectmode='cube',
             
         bgcolor=bg_color
         ),

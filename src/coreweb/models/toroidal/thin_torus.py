@@ -9,6 +9,8 @@ from numba import guvectorize
 from coreweb.rotqs import _numba_quaternion_rotate
 
 
+sqf = 2 #1 #2
+
 @guvectorize(
     [
         "void(float32[:], float32[:], float32[:], float32[:], float32[:])",
@@ -33,10 +35,10 @@ def thin_torus_qs(
     x = np.array(
         [
             0,
-            -(rho_0 + q0 * rho_1 * np.sin(q1 / 2) ** 2 * np.cos(q2)) * np.cos(q1)
+            -(rho_0 + q0 * rho_1 * np.sin(q1 / 2) ** sqf * np.cos(q2)) * np.cos(q1)
             + rho_0,
-            (rho_0 + q0 * rho_1 * np.sin(q1 / 2) ** 2 * np.cos(q2)) * np.sin(q1),
-            q0 * rho_1 * np.sin(q1 / 2) ** 2 * np.sin(q2) * delta,
+            (rho_0 + q0 * rho_1 * np.sin(q1 / 2) ** sqf * np.cos(q2)) * np.sin(q1),
+            q0 * rho_1 * np.sin(q1 / 2) ** sqf * np.sin(q2) * delta,
         ]
     )
 
@@ -108,9 +110,9 @@ def thin_torus_sq(
             phi += 2 * np.pi
 
     if phi == np.pi / 2 or phi == 3 * np.pi / 2:
-        r = x2 / delta / rho_1 / np.sin(phi) / np.sin(psi / 2) ** 2
+        r = x2 / delta / rho_1 / np.sin(phi) / np.sin(psi / 2) ** sqf
     else:
-        r = np.abs(rd / np.cos(phi) / np.sin(psi / 2) ** 2 / rho_1)
+        r = np.abs(rd / np.cos(phi) / np.sin(psi / 2) ** sqf / rho_1)
         
     #store new coordinates in q
 
@@ -127,32 +129,32 @@ def thin_torus_jacobian(
 
     dr = np.array(
         [
-            -rho_1 * np.sin(q1 / 2) ** 2 * np.cos(q2) * np.cos(q1),
-            w * rho_1 * np.sin(q1 / 2) ** 2 * np.cos(q2) * np.sin(q1),
-            rho_1 * np.sin(q1 / 2) ** 2 * np.sin(q2) * delta,
+            -rho_1 * np.sin(q1 / 2) ** sqf * np.cos(q2) * np.cos(q1),
+            w * rho_1 * np.sin(q1 / 2) ** sqf * np.cos(q2) * np.sin(q1),
+            rho_1 * np.sin(q1 / 2) ** sqf * np.sin(q2) * delta,
         ]
     )
 
     dpsi = np.array(
         [
             rho_0 * np.sin(q1)
-            + q0 * rho_1 * np.sin(q1 / 2) ** 2 * np.cos(q2) * np.sin(q1)
-            - q0 * rho_1 * np.cos(q1 / 2) * np.sin(q1 / 2) * np.cos(q2) * np.cos(q1),
+            + q0 * rho_1 * np.sin(q1 / 2) ** sqf * np.cos(q2) * np.sin(q1)
+            - q0 * rho_1 * sqf / 2 * np.cos(q1 / 2) * np.sin(q1 / 2) * np.cos(q2) * np.cos(q1),
             w
             * (
                 rho_0 * np.cos(q1)
-                + q0 * rho_1 * np.sin(q1 / 2) ** 2 * np.cos(q2) * np.cos(q1)
-                + q0 * rho_1 * np.cos(q1 / 2) * np.sin(q1 / 2) * np.cos(q2) * np.sin(q1)
+                + q0 * rho_1 * np.sin(q1 / 2) ** sqf * np.cos(q2) * np.cos(q1)
+                + q0 * rho_1 * sqf / 2 * np.cos(q1 / 2) * np.sin(q1 / 2) * np.cos(q2) * np.sin(q1)
             ),
-            q0 * rho_1 * delta * np.cos(q1 / 2) * np.sin(q1 / 2) * np.sin(q2),
+            q0 * rho_1 * delta * sqf / 2 * np.cos(q1 / 2) * np.sin(q1 / 2) * np.sin(q2),
         ]
     )
 
     dphi = np.array(
         [
-            q0 * rho_1 * np.sin(q1 / 2) ** 2 * np.sin(q2) * np.cos(q1),
-            -w * q0 * rho_1 * np.sin(q1 / 2) ** 2 * np.sin(q2) * np.sin(q1),
-            q0 * rho_1 * np.sin(q1 / 2) ** 2 * np.cos(q2) * delta,
+            q0 * rho_1 * np.sin(q1 / 2) ** sqf * np.sin(q2) * np.cos(q1),
+            -w * q0 * rho_1 * np.sin(q1 / 2) ** sqf * np.sin(q2) * np.sin(q1),
+            q0 * rho_1 * np.sin(q1 / 2) ** sqf * np.cos(q2) * delta,
         ]
     )
 
@@ -193,10 +195,13 @@ def thin_torus_gh(
 
     (q0, q1, q2) = (q[0], q[1], q[2])
 
-    if q0 <= 1:
+    phi_cut = 0 # andi recommends 0.1
+
+    if q0 <= 1 and (phi_cut < q1 < 2 * np.pi - phi_cut):
         (t_i, _, _, _, _, delta, _, _, Tfac, _, _, _, _, _) = iparams
         (_, rho_0, rho_1, b_t) = sparams
 
+        
         # get normal vectors
         (dr, dpsi, dphi) = thin_torus_jacobian(q0, q1, q2, rho_0, rho_1, delta)
 
@@ -209,17 +214,18 @@ def thin_torus_gh(
 
         br = 0
 
-        fluxfactor = 1 / np.sin(q1 / 2) ** 2
+        fluxfactor = 1 / np.sin(q1 / 2) ** sqf
 
         # ellipse circumference
         h = (delta - 1) ** 2 / (1 + delta) ** 2
         #Efac = np.pi * (1 + delta) * (1 + 3 * h / (10 + np.sqrt(4 - 3 * h)))
 
-        t = Tfac * rho_1 / rho_0 / 2 / np.pi * np.sin(q1 / 2) ** 2 #/ Efac
+        t = Tfac * rho_1 / rho_0 / 2 / np.pi * np.sin(q1 / 2) ** sqf #/ Efac
 
         denom = 1 + t**2 * q0**2
         bpsi = b_t / denom * fluxfactor
         bphi = b_t * t * q0 / denom / (1 + q0 * rho_1 / rho_0 * np.cos(q2)) * fluxfactor
+
 
         # magnetic field in (x)
         bsnp[0] = dr[0] * br + dpsi[0] * bpsi + dphi[0] * bphi
@@ -228,6 +234,8 @@ def thin_torus_gh(
 
         # magnetic field in (s)
         bss = _numba_quaternion_rotate(np.array([0, bsnp[0], bsnp[1], bsnp[2]]), q_xs)
+
+        bt = np.sum(bss[:3]**2)
 
         b[0] = bss[0]
         b[1] = bss[1]

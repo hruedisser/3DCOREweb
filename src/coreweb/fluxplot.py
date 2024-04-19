@@ -194,6 +194,7 @@ def fullinsitu(observer, t_fit=None, launchtime=None, start=None, end=None, t_s=
     #pos = observer_obj.trajectory(t, reference_frame=ref_frame, smoothing="gaussian")
     #print(pos)
     
+    
     if best == True:
         iparams = get_iparams_live(*extract_row(row))
         #print(iparams)
@@ -211,8 +212,8 @@ def fullinsitu(observer, t_fit=None, launchtime=None, start=None, end=None, t_s=
             if np.any(rtn_bx > 1500) or np.any(rtn_by > 1500) or np.any(rtn_bz > 1500):
                 print(iparams)
                 #return
-            else:
-                return
+            #else:
+            #    return
         outa[outa==0] = np.nan
 
     if mean == True:
@@ -321,6 +322,7 @@ def fullinsitu(observer, t_fit=None, launchtime=None, start=None, end=None, t_s=
         plt.plot(t[tind+1:-1], b[tind+1:-1, 1], c2, alpha=1, lw=lw_insitu)
         plt.plot(t[tind+1:-1], b[tind+1:-1, 2], c3, alpha=1, lw=lw_insitu)    
 
+    print(iparams)
             
     date_form = mdates.DateFormatter("%h %d %H")
     plt.gca().xaxis.set_major_formatter(date_form)
