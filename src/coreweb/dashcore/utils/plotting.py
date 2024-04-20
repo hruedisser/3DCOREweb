@@ -321,6 +321,7 @@ def check_animation(pos_array, results, plottheme, graph, reference_frame, rinpu
                 fieldradii = [0.3, 0.5, 0.8]
                 fieldlons = [.1, .3, .5, .8]
                 pifacs = [1, 2, 4]
+                last_pts = -10
 
                 if secondfield is not None:
                     twist2_params = copy.deepcopy(iparams)  # Perform a deep copy of iparams
@@ -338,16 +339,16 @@ def check_animation(pos_array, results, plottheme, graph, reference_frame, rinpu
                 q0=[0.8, .1, np.pi/2]
                 q0i =np.array(q0, dtype=np.float32)
                 fl, qfl = model_obj.visualize_fieldline(q0, index=0, steps=8000, step_size=0.005, return_phi=True)
-                fig.add_trace(go.Scatter3d(x=fl[:,0], y=fl[:,1], z=fl[:,2], mode='lines',
-                        line=dict(width=4, color='red'),
+                fig.add_trace(go.Scatter3d(x=fl[:last_pts,0], y=fl[:last_pts,1], z=fl[:last_pts,2], mode='lines',
+                        line=dict(width=6, color='red'),
                         showlegend=True,
                         name='Field line (T' + u"\u03c4 = 245)",
                         legendgroup = '1'), row=posrow, col=1)
 
                 if secondfield is not None:
                     fl2,qfl2 = model_obj2.visualize_fieldline(q0, index=0, steps=8000, step_size=0.005, return_phi= True)
-                    fig.add_trace(go.Scatter3d(x=fl2[:,0], y=fl2[:,1], z=fl2[:,2], mode='lines',
-                            line=dict(width=4, color='blue'),
+                    fig.add_trace(go.Scatter3d(x=fl2[:last_pts,0], y=fl2[:last_pts,1], z=fl2[:last_pts,2], mode='lines',
+                            line=dict(width=6, color='blue'),
                             showlegend=True,
                             name='Field line (T' + u"\u03c4 = " + str(secondfield) + ")",
                             legendgroup = '1'), row=posrow, col=1)
@@ -385,7 +386,7 @@ def check_animation(pos_array, results, plottheme, graph, reference_frame, rinpu
             sun_trace = go.Scatter3d(
                 x=[0], y=[0], z=[0],
                 mode='markers',
-                marker=dict(size=8, color='yellow'),
+                marker=dict(size=10, color='yellow'),
                 name='Sun',
                 legendgroup = '1'
             )
@@ -503,21 +504,21 @@ def check_animation(pos_array, results, plottheme, graph, reference_frame, rinpu
                     hoverinfo = "skip", 
                 )
                 fig.add_trace(circle_trace, row=posrow, col=1)
-
-                # Add labels for the circles next to the line connecting Sun and Earth
-                label_x = 0 #r  # x-coordinate for label position
-                label_y = -r #0  # y-coordinate for label position
-                label_trace = go.Scatter3d(
-                    x=[label_x], y=[label_y], z=[0],
-                    mode='text',
-                    text=[f'{r} AU'],
-                    textposition='middle left',
-                    textfont=dict(size=fontsize),
-                    showlegend=False,
-                    hovertemplate = None, 
-                    hoverinfo = "skip", 
-                )
-                fig.add_trace(label_trace, row=posrow, col=1)
+                if "outside circle" in plotoptions:
+                    # Add labels for the circles next to the line connecting Sun and Earth
+                    label_x = 0 #r  # x-coordinate for label position
+                    label_y = -r #0  # y-coordinate for label position
+                    label_trace = go.Scatter3d(
+                        x=[label_x], y=[label_y], z=[0],
+                        mode='text',
+                        text=[f'{r} AU'],
+                        textposition='middle left',
+                        textfont=dict(size=fontsize),
+                        showlegend=False,
+                        hovertemplate = None, 
+                        hoverinfo = "skip", 
+                    )
+                    fig.add_trace(label_trace, row=posrow, col=1)
 
             
             
@@ -542,20 +543,21 @@ def check_animation(pos_array, results, plottheme, graph, reference_frame, rinpu
                 )
                 fig.add_trace(au_line, row=posrow, col=1)
 
-                # Add labels for the AU lines
-                label_x = 1.1 * np.cos(angle_radians)
-                label_y = 1.1 * np.sin(angle_radians)
-                label_trace = go.Scatter3d(
-                    x=[label_x], y=[label_y], z=[0],
-                    mode='text',
-                    text=[f'+/{angle_degrees}°' if angle_degrees == -180 else f'{angle_degrees}°'],
-                    textposition='middle center',
-                    textfont=dict(size=fontsize),
-                    showlegend=False,
-                    hovertemplate = None, 
-                    hoverinfo = "skip", 
-                )
-                fig.add_trace(label_trace, row=posrow, col=1)
+                if "AU lines" in plotoptions:
+                    # Add labels for the AU lines
+                    label_x = 1.1 * np.cos(angle_radians)
+                    label_y = 1.1 * np.sin(angle_radians)
+                    label_trace = go.Scatter3d(
+                        x=[label_x], y=[label_y], z=[0],
+                        mode='text',
+                        text=[f'+/{angle_degrees}°' if angle_degrees == -180 else f'{angle_degrees}°'],
+                        textposition='middle center',
+                        textfont=dict(size=fontsize),
+                        showlegend=False,
+                        hovertemplate = None, 
+                        hoverinfo = "skip", 
+                    )
+                    fig.add_trace(label_trace, row=posrow, col=1)
                 
         if "Latitudinal Grid" in plotoptions:
             # Create data for concentrical circles
@@ -610,20 +612,21 @@ def check_animation(pos_array, results, plottheme, graph, reference_frame, rinpu
                 )
                 fig.add_trace(au_line, row=posrow, col=1)
 
-                # Add labels for the AU lines
-                label_x = 1.1 * np.cos(angle_radians)
-                label_y = 1.1 * np.sin(angle_radians)
-                label_trace = go.Scatter3d(
-                    x=[label_x], y=[0], z=[label_y],
-                    mode='text',
-                    text=[f'{angle_degrees}°'],
-                    textposition='middle center',
-                    textfont=dict(size=fontsize),
-                    showlegend=False,
-                    hovertemplate = None, 
-                    hoverinfo = "skip", 
-                )
-                fig.add_trace(label_trace, row=posrow, col=1)
+                if ("AU lines" in plotoptions):
+                    # Add labels for the AU lines
+                    label_x = 1.1 * np.cos(angle_radians)
+                    label_y = 1.1 * np.sin(angle_radians)
+                    label_trace = go.Scatter3d(
+                        x=[label_x], y=[0], z=[label_y],
+                        mode='text',
+                        text=[f'{angle_degrees}°'],
+                        textposition='middle center',
+                        textfont=dict(size=fontsize),
+                        showlegend=False,
+                        hovertemplate = None, 
+                        hoverinfo = "skip", 
+                    )
+                    fig.add_trace(label_trace, row=posrow, col=1)
 
         
             
@@ -973,9 +976,9 @@ def check_animation(pos_array, results, plottheme, graph, reference_frame, rinpu
         )
         #print(xcam, ycam, zcam)
         
-        fig.update_layout(height=height, width = 1000, showlegend=view_legend_insitu, scene_camera = camera, legend_tracegroupgap = gapwidth)
+        fig.update_layout(height=2*height, width = 2000, showlegend=view_legend_insitu, scene_camera = camera, legend_tracegroupgap = gapwidth)
     else:
-        fig.update_layout(height=height, width = 1000, showlegend=view_legend_insitu, legend_tracegroupgap = gapwidth)
+        fig.update_layout(height=2*height, width = 2000 , showlegend=view_legend_insitu, legend_tracegroupgap = gapwidth)
     
     #fig.show()
     return fig
