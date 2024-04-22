@@ -144,7 +144,7 @@ def check_animation(pos_array, results, plottheme, graph, reference_frame, rinpu
     line_color = 'white'
     line_colors =['#c20078','#f97306', '#069af3', '#000000']
 
-    fontsize = 12
+    fontsize = 13
 
     if "dotted" in plotoptions:
         dotted = "dot"
@@ -338,7 +338,7 @@ def check_animation(pos_array, results, plottheme, graph, reference_frame, rinpu
                 
                 q0=[0.8, .1, np.pi/2]
                 q0i =np.array(q0, dtype=np.float32)
-                fl, qfl = model_obj.visualize_fieldline(q0, index=0, steps=8000, step_size=0.005, return_phi=True)
+                fl, qfl = model_obj.visualize_fieldline(q0, index=0, steps=8000, step_size=0.004, return_phi=True)
                 fig.add_trace(go.Scatter3d(x=fl[:last_pts,0], y=fl[:last_pts,1], z=fl[:last_pts,2], mode='lines',
                         line=dict(width=6, color='red'),
                         showlegend=True,
@@ -346,7 +346,7 @@ def check_animation(pos_array, results, plottheme, graph, reference_frame, rinpu
                         legendgroup = '1'), row=posrow, col=1)
 
                 if secondfield is not None:
-                    fl2,qfl2 = model_obj2.visualize_fieldline(q0, index=0, steps=8000, step_size=0.005, return_phi= True)
+                    fl2,qfl2 = model_obj2.visualize_fieldline(q0, index=0, steps=8000, step_size=0.004, return_phi= True)
                     fig.add_trace(go.Scatter3d(x=fl2[:last_pts,0], y=fl2[:last_pts,1], z=fl2[:last_pts,2], mode='lines',
                             line=dict(width=6, color='blue'),
                             showlegend=True,
@@ -504,7 +504,7 @@ def check_animation(pos_array, results, plottheme, graph, reference_frame, rinpu
                     hoverinfo = "skip", 
                 )
                 fig.add_trace(circle_trace, row=posrow, col=1)
-                if "outside circle" in plotoptions:
+                if "AU lines" in plotoptions:
                     # Add labels for the circles next to the line connecting Sun and Earth
                     label_x = 0 #r  # x-coordinate for label position
                     label_y = -r #0  # y-coordinate for label position
@@ -513,7 +513,7 @@ def check_animation(pos_array, results, plottheme, graph, reference_frame, rinpu
                         mode='text',
                         text=[f'{r} AU'],
                         textposition='middle left',
-                        textfont=dict(size=fontsize),
+                        textfont=dict(size=fontsize+4),
                         showlegend=False,
                         hovertemplate = None, 
                         hoverinfo = "skip", 
@@ -552,7 +552,7 @@ def check_animation(pos_array, results, plottheme, graph, reference_frame, rinpu
                         mode='text',
                         text=[f'+/{angle_degrees}°' if angle_degrees == -180 else f'{angle_degrees}°'],
                         textposition='middle center',
-                        textfont=dict(size=fontsize),
+                        textfont=dict(size=fontsize+4),
                         showlegend=False,
                         hovertemplate = None, 
                         hoverinfo = "skip", 
@@ -578,20 +578,21 @@ def check_animation(pos_array, results, plottheme, graph, reference_frame, rinpu
                 )
                 fig.add_trace(circle_trace, row=posrow, col=1)
 
-                # Add labels for the circles next to the line connecting Sun and Earth
-                label_x = r  # x-coordinate for label position
-                label_y = 0  # y-coordinate for label position
-                label_trace = go.Scatter3d(
-                    x=[0], y=[0], z=[r],
-                    mode='text',
-                    text=[f'{r} AU'],
-                    textposition='middle left',
-                    textfont=dict(size=fontsize),
-                    showlegend=False,
-                    hovertemplate = None, 
-                    hoverinfo = "skip", 
-                )
-                fig.add_trace(label_trace, row=posrow, col=1)
+                if "AU lines" in plotoptions:
+                    # Add labels for the circles next to the line connecting Sun and Earth
+                    label_x = r  # x-coordinate for label position
+                    label_y = 0  # y-coordinate for label position
+                    label_trace = go.Scatter3d(
+                        x=[0], y=[0], z=[r],
+                        mode='text',
+                        text=[f'{r} AU'],
+                        textposition='middle left',
+                        textfont=dict(size=fontsize+4),
+                        showlegend=False,
+                        hovertemplate = None, 
+                        hoverinfo = "skip", 
+                    )
+                    fig.add_trace(label_trace, row=posrow, col=1)
 
             # Create data for the AU lines and their labels
             num_lines = 10
@@ -621,7 +622,7 @@ def check_animation(pos_array, results, plottheme, graph, reference_frame, rinpu
                         mode='text',
                         text=[f'{angle_degrees}°'],
                         textposition='middle center',
-                        textfont=dict(size=fontsize),
+                        textfont=dict(size=fontsize+4),
                         showlegend=False,
                         hovertemplate = None, 
                         hoverinfo = "skip", 
