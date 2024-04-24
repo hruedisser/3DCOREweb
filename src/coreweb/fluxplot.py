@@ -173,17 +173,28 @@ def fullinsitu(observer, t_fit=None, launchtime=None, start=None, end=None, t_s=
     if end == None:
         end = t_fit[-1]
     
-    print(start, end)
+    #print(start, end)
 
 
     t = graph['t_data']
 
     # in situ data
 
+    # Find indices for the closest values to start and end
+    start_index = np.argmin(np.abs(t - start))
+    end_index = np.argmin(np.abs(t - end))
+
+    # Filter data to contain only values from start to end
+    t = t[start_index:end_index+1]
+
+    #print(t)
+
+    # in situ data
     if ref_frame == "HEEQ":
-        b = graph['b_data_HEEQ']
+        b = graph['b_data_HEEQ'][start_index:end_index+1]
     else:
-        b = graph['b_data_RTN']
+        b = graph['b_data_RTN'][start_index:end_index+1]
+
     
     #observer_obj = getattr(heliosat, observer)() # get observer obj
     #logger.info("Using HelioSat to retrieve observer data")
@@ -201,13 +212,17 @@ def fullinsitu(observer, t_fit=None, launchtime=None, start=None, end=None, t_s=
         model_obj = coreweb.ToroidalModel(launchtime, **iparams) # model gets initialized
         model_obj.generator()  
 
-        outa = np.array(model_obj.simulator(graph['t_data'], graph['pos_data']), dtype=object)
+        #print('arra', model_obj.iparams_arr)
+
+        outa = np.array(model_obj.simulator(graph['t_data'][start_index:end_index+1], graph['pos_data'][start_index:end_index+1]), dtype=object)
 
         outa = np.squeeze(outa[0])
+
         if ref_frame != "HEEQ":
-            x,y,z = hc.separate_components(graph['pos_data'])
+            x,y,z = hc.separate_components(graph['pos_data'][start_index:end_index+1])
             #print(x,y,z)
-            rtn_bx, rtn_by, rtn_bz = hc.convert_HEEQ_to_RTN_mag(x,y,z, outa[:, 0], outa[:, 1], outa[:, 2])
+            bx,by,bz = hc.separate_components(outa)
+            rtn_bx, rtn_by, rtn_bz = hc.convert_HEEQ_to_RTN_mag(x,y,z, bx,by,bz)
             outa[:, 0],outa[:, 1],outa[:, 2] = rtn_bx, rtn_by, rtn_bz        
             if np.any(rtn_bx > 1500) or np.any(rtn_by > 1500) or np.any(rtn_bz > 1500):
                 print(iparams)
@@ -215,15 +230,9 @@ def fullinsitu(observer, t_fit=None, launchtime=None, start=None, end=None, t_s=
             #else:
             #    return
         outa[outa==0] = np.nan
-
-    if mean == True:
-        model_obj = returnmodel(filepath)
-        outam = np.squeeze(np.array(model_obj.simulator(t, pos))[0])       
-        outam[outam==0] = np.nan
-        print(len(outam)) 
-
-
-             
+        #print(outa)
+        #print(graph['t_data'][start_index:end_index+1])
+        
     # get ensemble_data
     if ensemble == True:
         # read from pickle file
@@ -265,13 +274,16 @@ def fullinsitu(observer, t_fit=None, launchtime=None, start=None, end=None, t_s=
     
     if title == True:
         plt.title("3DCORE fitting result - "+obs_title)
+
+    #print( len(ed[0][3][0][start_index:end_index+1]))
+    #print( len(outa))
     
     if ensemble == True:
         # plotting the ensemble = 2 sigma spread of ensemble
-        plt.fill_between(t, ed[0][3][0], ed[0][3][1], alpha=0.25, color=c0)
-        plt.fill_between(t, ed[0][2][0][:, 0], ed[0][2][1][:, 0], alpha=0.25, color=c1)
-        plt.fill_between(t, ed[0][2][0][:, 1], ed[0][2][1][:, 1], alpha=0.25, color=c2)
-        plt.fill_between(t, ed[0][2][0][:, 2], ed[0][2][1][:, 2], alpha=0.25, color=c3)
+        plt.fill_between(t, ed[0][3][0][start_index:end_index+1], ed[0][3][1][start_index:end_index+1], alpha=0.25, color=c0)
+        plt.fill_between(t, ed[0][2][0][:, 0][start_index:end_index+1], ed[0][2][1][:, 0][start_index:end_index+1], alpha=0.25, color=c1)
+        plt.fill_between(t, ed[0][2][0][:, 1][start_index:end_index+1], ed[0][2][1][:, 1][start_index:end_index+1], alpha=0.25, color=c2)
+        plt.fill_between(t, ed[0][2][0][:, 2][start_index:end_index+1], ed[0][2][1][:, 2][start_index:end_index+1], alpha=0.25, color=c3)
         
     if best == True:
         # plotting the run with the parameters with min(eps)
@@ -322,7 +334,7 @@ def fullinsitu(observer, t_fit=None, launchtime=None, start=None, end=None, t_s=
         plt.plot(t[tind+1:-1], b[tind+1:-1, 1], c2, alpha=1, lw=lw_insitu)
         plt.plot(t[tind+1:-1], b[tind+1:-1, 2], c3, alpha=1, lw=lw_insitu)    
 
-    print(iparams)
+    #print(iparams)
             
     date_form = mdates.DateFormatter("%h %d %H")
     plt.gca().xaxis.set_major_formatter(date_form)

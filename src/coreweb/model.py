@@ -250,7 +250,7 @@ class SimulationBlackBox(object):
             self.propagator(dt[i])
             # simulate magnetic field at point i
             self.simulator_mag(pos[i], b_out[i])
-
+            
             if sparams and len(sparams) > 0:
                 s_out[i][:] = self.sparams_arr[i, sparams] #store new sparams
         if sparams and len(sparams) > 0:
@@ -386,6 +386,7 @@ class SimulationBlackBox(object):
 
             
         for k, iparam in self.iparams.items():
+            #print(k,iparam)
             ii = iparam["index"]
             dist = iparam["distribution"]
             bound = iparam["boundary"]

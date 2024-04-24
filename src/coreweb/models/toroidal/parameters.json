@@ -2,7 +2,7 @@
     "cme_launch_offset": {
         "index": 0,
         "name": "launch time",
-        "distribution": "uniform",
+        "distribution": "fixed",
         "default_value": 0,
         "maximum": 3600,
         "minimum": -3600,
@@ -71,7 +71,7 @@
         "name": "velocity",
         "distribution": "uniform",
         "maximum": 3000,
-        "minimum": 400,
+        "minimum": 200,
         "boundary": "continuous",
         "label": "v_0"
     },

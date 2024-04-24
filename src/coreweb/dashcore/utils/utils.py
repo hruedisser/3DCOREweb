@@ -1787,7 +1787,7 @@ def load_fit(name, graph):
     resdf.insert(0, 'Index', range(0, num_rows ))
 
     # Round all values to 2 decimal points
-    resdfnew = round_dataframe(resdf)
+    resdfnew = resdf #round_dataframe(resdf)
     
     ###### stattab
     
@@ -1795,7 +1795,7 @@ def load_fit(name, graph):
     mean_row.insert(0, 'Index', ["Mean", "Standard Deviation", "Median", "Minimum", "Maximum", "Q1", "Q3", "Skewness", "Kurtosis"],)
 
     # Round all values to 2 decimal points
-    mean_rownew = round_dataframe(mean_row)
+    mean_rownew = mean_row #round_dataframe(mean_row)
     
     mean_row_df = pd.DataFrame([mean_rownew.iloc[0]], columns=resdf.columns)
     # Concatenate resdf and mean_row_df along the rows (axis=0) and reassign it to resdf
@@ -1967,20 +1967,19 @@ def generate_ensemble(path: str, dt: datetime.datetime, posdata, reference_frame
     except:
         ftobj = BaseMethod(path.replace('_ensembles_GSM', ''))
 
-
     # simulate flux ropes using iparams from loaded fitter
     ensemble = np.squeeze(np.array(ftobj.model_obj.simulator(dt, posdata)[0]))
-    print(posdata)
+
     # how much to keep of the generated ensemble
     if max_index is None:
         max_index = ensemble.shape[1]
 
     ensemble = ensemble[:, :max_index, :]
     
-    #print(ensemble)
+
     
     #ensemble[np.where(ensemble == 0)] = np.nan
-
+    fig = go.Figure()
     # transform frame
     if reference_frame != reference_frame_to:
         x,y,z = hc.separate_components(posdata)        
@@ -1993,13 +1992,12 @@ def generate_ensemble(path: str, dt: datetime.datetime, posdata, reference_frame
             sys.stdout.flush()
             bx,by,bz = hc.separate_components(ensemble[:, k, :])
             #plt.figure()
-            #plt.plot(bx)
-            #plt.plot(by)
-            #plt.plot(bz)
+            
             #plt.show()
 
             rtn_bx, rtn_by, rtn_bz = hc.convert_HEEQ_to_RTN_mag(x,y,z, bx,by,bz, printer = False)
-            
+            fig.add_trace(go.Scatter(x=dt, y=rtn_bx,
+                    mode='lines'))
             if reference_frame_to == "RTN":
                 ensemble[:, k, :] = hc.combine_components(rtn_bx, rtn_by, rtn_bz)
 
@@ -2008,8 +2006,8 @@ def generate_ensemble(path: str, dt: datetime.datetime, posdata, reference_frame
                 ensemble[:, k, :] = hc.combine_components(gsm_bx, gsm_by, gsm_bz)
         # Print a new line after progress is complete
         print()
-
-
+    fig.show()
+    
     ensemble[np.where(ensemble == 0)] = np.nan
 
     # generate quantiles
