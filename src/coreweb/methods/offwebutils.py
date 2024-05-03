@@ -86,6 +86,17 @@ def signaturecheckfull(many_lats, many_lons, model_obj, rinput, savedir, checkan
     for j, lon in enumerate(many_lons):
         for k, lat in enumerate(many_lats):
             showlegend = (k == 0 and j == 0)
+
+            print(lon)
+
+            if lon == 60:
+                delta1 = 105
+                delta2 = (graphstore['t_data'][toward] - t_launch).total_seconds() / 3600
+
+            else:
+                delta1 = (graphstore['t_data'][onward] - t_launch).total_seconds() / 3600
+                delta2 = 130
+            
             
             x,y,z = sphere2cart(float(rinput), np.deg2rad(-float(lat)+90), np.deg2rad(float(lon)))
 
@@ -118,8 +129,10 @@ def signaturecheckfull(many_lats, many_lons, model_obj, rinput, savedir, checkan
 
             # Update layout
             fig.update_yaxes(row=k+1, col=j+1, range=[-60,60], tickvals=np.arange(-50, 60, 25), tickfont=dict(size=fontsize),gridcolor=gridline_color,zerolinecolor=gridline_color )
+            fig.update_xaxes(row=k+1, col=j+1, range=[t_launch+datetime.timedelta(hours=delta1), t_launch+datetime.timedelta(hours=delta2)])
 
         fig.update_layout(showlegend=True, height=total_height, width=total_width,
+            legend=dict(font=dict(size=fontsize)),
             xaxis=dict(tickfont=dict(size=fontsize)),  # Set x-axis grid color and hide zeroline
             yaxis=dict(tickfont=dict(size=fontsize))  # Set y-axis grid color
         )

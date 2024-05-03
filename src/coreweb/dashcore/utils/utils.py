@@ -1787,7 +1787,7 @@ def load_fit(name, graph):
     resdf.insert(0, 'Index', range(0, num_rows ))
 
     # Round all values to 2 decimal points
-    resdfnew = resdf #round_dataframe(resdf)
+    resdfnew = round_dataframe(resdf)
     
     ###### stattab
     
@@ -1795,7 +1795,7 @@ def load_fit(name, graph):
     mean_row.insert(0, 'Index', ["Mean", "Standard Deviation", "Median", "Minimum", "Maximum", "Q1", "Q3", "Skewness", "Kurtosis"],)
 
     # Round all values to 2 decimal points
-    mean_rownew = mean_row #round_dataframe(mean_row)
+    mean_rownew = round_dataframe(mean_row)
     
     mean_row_df = pd.DataFrame([mean_rownew.iloc[0]], columns=resdf.columns)
     # Concatenate resdf and mean_row_df along the rows (axis=0) and reassign it to resdf

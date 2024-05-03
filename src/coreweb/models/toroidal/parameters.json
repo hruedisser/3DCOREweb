@@ -32,7 +32,7 @@
         "name": "inclination",
         "distribution": "uniform",
         "maximum": 360,
-        "minimum": 0,
+        "minimum": -180,
         "boundary": "periodic",
         "label": "inc"
     },

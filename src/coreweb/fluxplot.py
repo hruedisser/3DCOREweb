@@ -314,10 +314,10 @@ def fullinsitu(observer, t_fit=None, launchtime=None, start=None, end=None, t_s=
     #print(tind, t[tind])
     
     # plotting magnetic field data
-    plt.plot(t[0:tind], np.sqrt(np.sum(b[0:tind]**2, axis=1)), c0, alpha=0.5, lw=3, label='|$\mathbf{B}$|')
-    plt.plot(t[0:tind], b[0:tind, 0], c1, alpha=1, lw=lw_insitu, label='B$_r$')
-    plt.plot(t[0:tind], b[0:tind, 1], c2, alpha=1, lw=lw_insitu, label='B$_t$')
-    plt.plot(t[0:tind], b[0:tind, 2], c3, alpha=1, lw=lw_insitu, label='B$_n$')
+    plt.plot(t[0:tind], np.sqrt(np.sum(b[0:tind]**2, axis=1)), c0, alpha=0.5, lw=3, label='B$_{TOT}$')
+    plt.plot(t[0:tind], b[0:tind, 0], c1, alpha=1, lw=lw_insitu, label='B$_R$')
+    plt.plot(t[0:tind], b[0:tind, 1], c2, alpha=1, lw=lw_insitu, label='B$_T$')
+    plt.plot(t[0:tind], b[0:tind, 2], c3, alpha=1, lw=lw_insitu, label='B$_N$')
 
     
     if prediction == True:
@@ -347,7 +347,7 @@ def fullinsitu(observer, t_fit=None, launchtime=None, start=None, end=None, t_s=
     plt.axvline(x=t_s, lw=lw_fitp, alpha=0.75, color="k", ls="-.")
     plt.axvline(x=t_e, lw=lw_fitp, alpha=0.75, color="k", ls="-.")
     
-    plt.grid(color = 'lightgrey')
+    #plt.grid(color = 'lightgrey')
 
     if legend == True:
         plt.legend(loc='lower right', ncol=2)
@@ -363,7 +363,7 @@ def fullinsitu(observer, t_fit=None, launchtime=None, start=None, end=None, t_s=
     plt.show()  
 
 def full3d(graph, timesnap, plotoptions, spacecraftoptions=['solo', 'psp'], bodyoptions=['Earth'], *modelstatevars, viewlegend = False, posstore = None, addfield = False, launchtime=None, 
-           title=False, view_azim=0, view_elev=45, view_radius=0.2, black = False, sc = 'SOLO', fontsize = 8):
+           title=False, view_azim=0, view_elev=45, view_radius=0.2, black = False, sc = 'SOLO', fontsize = 8, showtext = True):
     
     """
     Plots 3d.
@@ -449,7 +449,7 @@ def full3d(graph, timesnap, plotoptions, spacecraftoptions=['solo', 'psp'], body
         plt.title(timesnap.strftime('%Y-%m-%d-%H-%M'))
     
     if "Longitudinal Grid" in plotoptions:
-        plot_longgrid(ax, fontsize=fontsize)
+        plot_longgrid(ax, fontsize=fontsize, text=showtext, view_radius = view_radius)
 
     # #### still do   
     
@@ -647,31 +647,43 @@ def plot_circle(ax, dist, color=None, **kwargs):
     xc = dist * np.sin(thetac)
     yc = dist * np.cos(thetac)
     zc = 0
-    ax.plot(xc, yc, zc, ls='--', color=color, lw=0.3, **kwargs)
+    ax.plot(xc, yc, zc, color=color, lw=0.3, **kwargs)
 
-def plot_longgrid(ax, fontsize=6, color = 'k'):
+def plot_longgrid(ax, fontsize=6, color = 'k', text = True, view_radius = 1):
 
     radii = [0.3, 0.5, 0.8]
+
+    if view_radius < .3:
+        multip1 = .225
+        multip2 = .25
+        radii = [0.2]
+    else:
+        multip1 = .85
+        multip2 = .9
     
     for r in radii:
         plot_circle(ax, r, color=color)
-        ax.text(x = -0.02, y = r + 0.02, z = 0, s = f'{r} AU', fontsize = fontsize) 
+        if text == True:
+            ax.text(x = -0.05, y = r + 0.02, z = 0, s = f'{r} AU', fontsize = fontsize) 
 
     # Create data for the AU lines and their labels
     num_lines = 8
     for i in range(num_lines):
         angle_degrees = -180 + (i * 45)  # Adjusted angle in degrees (-180 to 180)
         angle_radians = np.deg2rad(angle_degrees)
-        x = [0, np.cos(angle_radians)]
-        y = [0, np.sin(angle_radians)]
+        x = [0, np.cos(angle_radians)* multip1] 
+        y = [0, np.sin(angle_radians)* multip1]
         z = [0, 0]
 
-        ax.plot(x, y, z, ls='--', color=color, lw=0.3)
+        ax.plot(x, y, z, color=color, lw=0.3)
 
-        label_x = 1.1 * np.cos(angle_radians)
-        label_y = 1.1 * np.sin(angle_radians)
+        label_x = multip2 * np.cos(angle_radians)
+        label_y = multip2 * np.sin(angle_radians)
+        
 
-        ax.text(x = label_x, y = label_y, z = 0, s = f'+/{angle_degrees}°' if angle_degrees == -180 else f'{angle_degrees}°', fontsize = fontsize) 
+        if text == True:
+            ax.text(x = label_x, y = label_y, z = 0, s = f'+/{angle_degrees}°' if angle_degrees == -180 else f'{angle_degrees}°', fontsize = fontsize, horizontalalignment='center',
+     verticalalignment='center') 
 
     
 
