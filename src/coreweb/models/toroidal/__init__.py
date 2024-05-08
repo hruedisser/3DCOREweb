@@ -154,6 +154,7 @@ class ToroidalModel(SimulationBlackBox):
 
         # combination of wireframe points in (q)
         arr = np.array(list(product(r, u, v)), dtype=self.dtype).reshape(c**2, 3)
+
         arr2 = np.zeros_like(arr)
 
         for i in range(0, len(arr)):

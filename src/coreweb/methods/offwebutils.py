@@ -87,7 +87,7 @@ def signaturecheckfull(many_lats, many_lons, model_obj, rinput, savedir, checkan
         for k, lat in enumerate(many_lats):
             showlegend = (k == 0 and j == 0)
 
-            print(lon)
+            #print(lon)
 
             if lon == 60:
                 delta1 = 105
@@ -2226,7 +2226,7 @@ def create_movie(degmove, timeres, deltatime, longmove_array, results, plottheme
     # Format the datetime as a string
     current_time = current_datetime.strftime("%Y%m%d%H%M")
 
-    print(currentcam)
+    #print(currentcam)
 
     path = 'src/coreweb/dashcore/temp/' + current_time + '/'
 

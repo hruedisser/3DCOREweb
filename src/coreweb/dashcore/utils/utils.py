@@ -976,9 +976,16 @@ def get_archivedata(sc, insitubegin, insituend):
     bx = data['bx']
     by = data['by']
     bz = data['bz']
-    x = data['x'] * 6.68459e-9
-    y = data['y'] * 6.68459e-9
-    z = data['z'] * 6.68459e-9
+
+    if data['x'][0] > 100:
+        x = data['x'] * 6.68459e-9
+        y = data['y'] * 6.68459e-9
+        z = data['z'] * 6.68459e-9
+    else:
+        print('position seems to be in AU already, skipping conversion')
+        x = data['x']
+        y = data['y'] 
+        z = data['z'] 
     
     insitubegin = insitubegin.replace(tzinfo=None)
     insituend = insituend.replace(tzinfo=None)
@@ -994,9 +1001,20 @@ def get_archivedata(sc, insitubegin, insituend):
         heeq_bx = data['bx']
         heeq_by = data['by']
         heeq_bz = data['bz']
-        x_heeq = data['x']
-        y_heeq = data['y']
-        z_heeq = data['z']
+        #x_heeq = data['x']
+        #y_heeq = data['y']
+        #z_heeq = data['z']
+
+        if data['x'][0] > 100:
+            
+            x_heeq = data['x'] * 6.68459e-9
+            y_heeq = data['y'] * 6.68459e-9
+            z_heeq = data['z'] * 6.68459e-9
+        else:
+            print('position seems to be in AU already, skipping conversion')
+            x_heeq = data['x']
+            y_heeq = data['y'] 
+            z_heeq = data['z'] 
         
         #print(heeq_bx)
 
