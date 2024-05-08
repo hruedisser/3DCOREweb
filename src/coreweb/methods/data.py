@@ -180,12 +180,17 @@ class FittingData(object):
                     as_endpoints=True,
                     sampling_freq = sampling_freq,
                 )
+
+                #print(data)
                 
                 data[np.where(data == None)] = 0
                 #print(type(data))
                 #print(data)
 
-                data[np.isnan(data)] = 0 #set all nan values to 0
+                try:
+                    data[np.isnan(data)] = 0 #set all nan values to 0
+                except:
+                    pass
 
                 # fF, fS = power_spectral_density(dt, data, format_for_fft=True)
                 fF, fS = mag_fft(dt, data, sampling_freq=sampling_freq) # computes the mean power spectrum distribution
