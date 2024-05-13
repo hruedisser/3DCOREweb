@@ -194,6 +194,7 @@ def thin_torus_gh(
     bsnp = np.empty((3,))
 
     (q0, q1, q2) = (q[0], q[1], q[2])
+    print(q0, q1, q2)
 
     phi_cut = 0 # andi recommends 0.1
 

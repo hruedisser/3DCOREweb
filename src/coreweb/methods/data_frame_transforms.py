@@ -323,3 +323,10 @@ def RTN_to_GSM(x, y, z, bx, by, bz, time):
     gsm_bx, gsm_by, gsm_bz = GSE_to_GSM(gse_bx, gse_by, gse_bz, time)
     
     return gsm_bx, gsm_by, gsm_bz
+
+def GSM_to_HEEQ(x,y,z,bx,by,bz,time):
+    gse_bx, gse_by, gse_bz = GSM_to_GSE(bx, by, bz, time)
+    hee_bx, hee_by, hee_bz = GSE_to_HEE(gse_bx, gse_by, gse_bz)
+    heeq_bx, heeq_by, heeq_bz = HEE_to_HEEQ(hee_bx, hee_by, hee_bz, time)
+
+    return heeq_bx, heeq_by, heeq_bz

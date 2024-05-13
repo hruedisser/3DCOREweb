@@ -777,9 +777,15 @@ def get_rt_data(sc, insitubegin, insituend, plushours):
     
     if sc == "NOAA_RTSW":
         url = 'https://helioforecast.space/static/sync/insitu_python/noaa_rtsw_last_35files_now.p'
-    elif sc == "STEREO-A_beacon":
-        url = 'https://helioforecast.space/static/sync/insitu_python/stereoa_beacon_rtn_last_35days_now.p'
-        
+    #elif sc == "STEREO-A_beacon":
+    #    url = 'https://helioforecast.space/static/sync/insitu_python/stereoa_beacon_rtn_last_35days_now.p'
+    
+    if sc == "NOAA_ARCHIVE":
+        b_data_HEEQ, b_data_RTN, b_data_GSM, t_data, pos_data = get_archivedata(sc, insitubegin, insituend)
+
+
+
+
     file = urllib.request.urlopen(url)    
     data, dh = p.load(file)
     
@@ -831,12 +837,17 @@ def get_rt_data(sc, insitubegin, insituend, plushours):
     # b_RTN = np.column_stack((bx[mask], by[mask], bz[mask]))
     # pos = np.column_stack((x[mask], y[mask], z[mask]))
     
-    heeq_bx, heeq_by, heeq_bz = hc.convert_RTN_to_HEEQ_mag(x, y, z, bx, by, bz)
+    rtn_bx, rtn_by, rtn_bz = dft.GSM_to_RTN_approx(x,y,z,bx,by,bz,time)
+
+
+    heeq_bx, heeq_by, heeq_bz = dft.GSM_to_HEEQ(x,y,z,bx,by,bz,time)
     b_HEEQ = np.column_stack((heeq_bx, heeq_by, heeq_bz))
     
     dt = time
-    b_RTN = np.column_stack((bx, by, bz))
+    b_RTN = np.column_stack((rtn_bx, rtn_by, rtn_bz))
     pos = np.column_stack((x, y, z))
+
+    b_GSM = np.column_stack((bx, by, bz))
 
     if plushours == None:
         pass
@@ -849,10 +860,11 @@ def get_rt_data(sc, insitubegin, insituend, plushours):
         
         b_HEEQ = np.concatenate((b_HEEQ, nan_array))
         b_RTN = np.concatenate((b_RTN, nan_array))
+        b_GSM = np.concatenate((b_GSM, nan_array))
         dt = np.concatenate((dt, np.array([dt[-1] + datetime.timedelta(minutes=i) for i in range(1, int(plushours * 60) + 1)])))
         pos = np.concatenate((pos, np.tile(pos[-1], (int(plushours * 60), 1))))
 
-    return b_HEEQ, b_RTN, dt, pos
+    return b_HEEQ, b_RTN, b_GSM, dt, pos
 
 @functools.lru_cache()    
 def get_uploaddata(filename):
@@ -938,12 +950,14 @@ def get_archivedata(sc, insitubegin, insituend):
     '''
     
     archivepath = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "data/archive"))
-        
+    
+    filertn = None
+
     if (sc == 'BepiColombo') or (sc == 'BEPI'):
         filertn = '/bepi_ob_2019_now_rtn.p'
         
-    elif sc == 'DSCOVR':
-        file = ''
+    elif sc == 'NOAA_ARCHIVE':
+        filertn = '/noaa_archive_gsm.p'
         
     elif sc == 'MESSENGER':
         filertn = '/messenger_2007_2015_sceq_removed.p'
@@ -970,7 +984,7 @@ def get_archivedata(sc, insitubegin, insituend):
         fileheeq = '/wind_1995_now_heeq.p'
         
     [data,dataheader]=p.load(open(archivepath + filertn, "rb" ) )
-    
+        
     # Extract relevant fields
     time = data['time']
     bx = data['bx']

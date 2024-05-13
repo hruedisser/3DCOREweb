@@ -753,7 +753,8 @@ def get_eventinfo(cat_event, purelysyn = False, custom = False, loaded = False):
         sc = cat_event.split('_')[1]
 
         if sc == 'NOAA':
-            sc = 'NOAA_RTSW'
+            sc = cat_event.split('_')[1] + '_' + cat_event.split('_')[2] #'NOAA_RTSW'
+            #print(sc)
 
 
         eventinfo = {"processday": [input_datetime_formatted],
@@ -990,7 +991,7 @@ def generate_graphstore(infodata, reference_frame, rawdata = None, plushours = N
     posstore = {}
     newhash = infodata['id']
 
-    if reference_frame == "HEEQ":
+    if reference_frame == "HEEQ" or reference_frame == "GSM":
         names = ['Bx', 'By', 'Bz']
     elif reference_frame == "RTN": 
         names = ['Br', 'Bt', 'Bn']
@@ -1065,6 +1066,8 @@ def generate_graphstore(infodata, reference_frame, rawdata = None, plushours = N
             b_data_HEEQ, b_data_RTN, t_data, pos_data = get_uploaddata(rawdata, infodata['loaded'], plushours)
         else:
             try:
+                if sc == "NOAA_ARCHIVE":
+                     raise Exception("")
                 b_data_HEEQ, b_data_RTN, t_data, pos_data = get_archivedata(sc, insitubegin, insituend)
 
                 if len(b_data_HEEQ) == 0:
@@ -1094,9 +1097,9 @@ def generate_graphstore(infodata, reference_frame, rawdata = None, plushours = N
                         pos_data = np.empty((desired_length, 3))
                         pos_data[:] = 0.5
 
-                    elif (sc == "NOAA_RTSW") or (sc == "STEREO-A_beacon"):
+                    elif (sc == "NOAA_RTSW") or (sc=="NOAA_ARCHIVE") or (sc == "STEREO-A_beacon"):
                         print('Loading realtime data...')
-                        b_data_HEEQ, b_data_RTN, t_data, pos_data = get_rt_data(sc, insitubegin, insituend, plushours)
+                        b_data_HEEQ, b_data_RTN, b_data_GSM, t_data, pos_data = get_rt_data(sc, insitubegin, insituend, plushours)
                         if len(b_data_HEEQ) == 0:
                             raise Exception("Data not contained in Archive")
                         print('Realtime insitu data obtained successfully')
@@ -1117,6 +1120,8 @@ def generate_graphstore(infodata, reference_frame, rawdata = None, plushours = N
 
         if reference_frame == "HEEQ":
             b_data = b_data_HEEQ
+        elif reference_frame == "GSM":
+            b_data = b_data_GSM
         else:
             b_data = b_data_RTN
           
@@ -1211,6 +1216,17 @@ def generate_graphstore(infodata, reference_frame, rawdata = None, plushours = N
             with open(data_file_path, 'wb') as file:
                 p.dump(saved_data, file)
         else:
+            # Save obtained data to the file
+            saved_data = {
+                'b_data_HEEQ': b_data_HEEQ,
+                'b_data_RTN': b_data_RTN,
+                'b_data_GSM': b_data_GSM,
+                't_data': t_data,
+                'bodytraces': bodytraces,
+                'bodydata': bodydata,
+                'pos_data': pos_data,
+                'posstore': posstore,
+            }
             # Get the current date and time as a string
             current_time = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
 
@@ -1230,7 +1246,10 @@ def generate_graphstore(infodata, reference_frame, rawdata = None, plushours = N
         return {}, {},{}
     
     
-    return {'fig' : fig, 'b_data_HEEQ': b_data_HEEQ, 'b_data_RTN': b_data_RTN, 't_data': t_data, 'pos_data': pos_data, 'names': names, 'bodytraces': bodytraces, 'bodydata': bodydata}, posstore, {}
+    if not (sc == "NOAA_RTSW" or sc == "STEREO-A_beacon"):
+        return {'fig' : fig, 'b_data_HEEQ': b_data_HEEQ, 'b_data_RTN': b_data_RTN, 't_data': t_data, 'pos_data': pos_data, 'names': names, 'bodytraces': bodytraces, 'bodydata': bodydata}, posstore, {}
+    else:
+        return {'fig' : fig, 'b_data_HEEQ': b_data_HEEQ, 'b_data_RTN': b_data_RTN, 'b_data_GSM': b_data_GSM, 't_data': t_data, 'pos_data': pos_data, 'names': names, 'bodytraces': bodytraces, 'bodydata': bodydata}, posstore, {}
 
 
 
