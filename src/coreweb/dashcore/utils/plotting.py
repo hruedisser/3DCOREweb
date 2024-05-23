@@ -928,6 +928,7 @@ def check_animation(pos_array, results, plottheme, graph, reference_frame, rinpu
         # Calculate the y-axis limits for the second subplot
         min_b_data = np.nanmin(b_data)
         max_b_data = np.nanmax(b_data)
+
         y_range_padding = 10  # Adjust this value as needed
 
         # if sc == "SYN":

@@ -777,36 +777,43 @@ def get_rt_data(sc, insitubegin, insituend, plushours):
     
     if sc == "NOAA_RTSW":
         url = 'https://helioforecast.space/static/sync/insitu_python/noaa_rtsw_last_35files_now.p'
+        file = urllib.request.urlopen(url)    
+        data, dh = p.load(file)
+    
     #elif sc == "STEREO-A_beacon":
     #    url = 'https://helioforecast.space/static/sync/insitu_python/stereoa_beacon_rtn_last_35days_now.p'
     
     if sc == "NOAA_ARCHIVE":
-        b_data_HEEQ, b_data_RTN, b_data_GSM, t_data, pos_data = get_archivedata(sc, insitubegin, insituend)
+        archivepath = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "data/archive"))
+        filertn = '/noaa_archive_gsm.p'
+        [data,dataheader]=p.load(open(archivepath + filertn, "rb" )) 
 
-
-
-
-    file = urllib.request.urlopen(url)    
-    data, dh = p.load(file)
-    
     # Extract relevant fields
     time = data['time']
     bx = data['bx']
     by = data['by']
     bz = data['bz']
-    x = data['x'] 
-    y = data['y'] 
-    z = data['z'] 
+    
+    if data['x'][0] > 100:
+        x = data['x'] * 6.68459e-9
+        y = data['y'] * 6.68459e-9
+        z = data['z'] * 6.68459e-9
+    else:
+        print('position seems to be in AU already, skipping conversion')
+        x = data['x']
+        y = data['y'] 
+        z = data['z'] 
 
     # Filter data based on insitubegin
-    begin_index = np.where(time >= insitubegin + datetime.timedelta(hours=24))[0][0]
-    time = time[begin_index:]
-    bx = bx[begin_index:]
-    by = by[begin_index:]
-    bz = bz[begin_index:]
-    x = x[begin_index:]
-    y = y[begin_index:]
-    z = z[begin_index:]
+    begin_index = np.where(time >= insitubegin)[0][0]
+    end_index = np.where(time <= insituend + datetime.timedelta(hours=5*24))[0][-1]
+    time = time[begin_index:end_index]
+    bx = bx[begin_index:end_index]
+    by = by[begin_index:end_index]
+    bz = bz[begin_index:end_index]
+    x = x[begin_index:end_index]
+    y = y[begin_index:end_index]
+    z = z[begin_index:end_index]
 
     # insitubegin = insitubegin.replace(tzinfo=None)
     # insituend = insituend.replace(tzinfo=None)
