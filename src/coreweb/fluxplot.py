@@ -218,6 +218,9 @@ def fullinsitu(observer, t_fit=None, launchtime=None, start=None, end=None, t_s=
 
         outa = np.squeeze(outa[0])
 
+        #print(graph['t_data'])
+        #print(outa)
+
         if ref_frame != "HEEQ":
             x,y,z = hc.separate_components(graph['pos_data'][start_index:end_index+1])
             #print(x,y,z)

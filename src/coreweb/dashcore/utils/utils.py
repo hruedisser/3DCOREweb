@@ -2018,7 +2018,7 @@ def generate_ensemble(path: str, dt: datetime.datetime, posdata, reference_frame
 
     
     #ensemble[np.where(ensemble == 0)] = np.nan
-    fig = go.Figure()
+    #fig = go.Figure()
     # transform frame
     if reference_frame != reference_frame_to:
         x,y,z = hc.separate_components(posdata)        
@@ -2035,8 +2035,8 @@ def generate_ensemble(path: str, dt: datetime.datetime, posdata, reference_frame
             #plt.show()
 
             rtn_bx, rtn_by, rtn_bz = hc.convert_HEEQ_to_RTN_mag(x,y,z, bx,by,bz, printer = False)
-            fig.add_trace(go.Scatter(x=dt, y=rtn_bx,
-                    mode='lines'))
+            #fig.add_trace(go.Scatter(x=dt, y=rtn_bx,
+            #        mode='lines'))
             if reference_frame_to == "RTN":
                 ensemble[:, k, :] = hc.combine_components(rtn_bx, rtn_by, rtn_bz)
 
@@ -2045,7 +2045,7 @@ def generate_ensemble(path: str, dt: datetime.datetime, posdata, reference_frame
                 ensemble[:, k, :] = hc.combine_components(gsm_bx, gsm_by, gsm_bz)
         # Print a new line after progress is complete
         print()
-    fig.show()
+    #fig.show()
     
     ensemble[np.where(ensemble == 0)] = np.nan
 

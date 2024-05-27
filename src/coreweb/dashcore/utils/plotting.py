@@ -814,7 +814,7 @@ def check_animation(pos_array, results, plottheme, graph, reference_frame, rinpu
                     
                 
                 except Exception as e:
-                    print(e)
+                    #print(e)
                     outa = np.array(model_obj.simulator(graph['t_data'], graph['pos_data']), dtype=object)
             else:
                 outa = np.array(model_obj.simulator(graph['t_data'], graph['pos_data']), dtype=object)

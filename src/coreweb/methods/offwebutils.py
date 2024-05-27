@@ -819,12 +819,16 @@ def get_uploaddata(data, filename, plushours):
     used to generate the insitudata for the graphstore from upload (app.py)
     '''
 
-    if data == {}:
+    #print(data)
+
+    if isinstance(data, dict) and not data:
+
         try:
             data = np.array(p.load(open(filename, "rb" ))[0], dtype=[('time', 'O'), ('bx', '<f8'), ('by', '<f8'), ('bz', '<f8'), ('bt', '<f8'), ('x', '<f8'), ('y', '<f8'), ('z', '<f8'), ('r', '<f8'), ('lat', '<f8'), ('lon', '<f8')])
         except:
             data = np.array(p.load(open(filename, "rb" ))[0], dtype=[('time', 'O'), ('bx', '<f8'), ('by', '<f8'), ('bz', '<f8'), ('bt', '<f8'), ('vx', '<f8'), ('vy', '<f8'), ('vz', '<f8'), ('vt', '<f8'), ('np', '<f8'), ('tp', '<f8'), ('x', '<f8'), ('y', '<f8'), ('z', '<f8'), ('r', '<f8'), ('lat', '<f8'), ('lon', '<f8')])
-    
+
+        #print(data)
 
         time = data['time']
         bx = data['bx']
@@ -1211,7 +1215,7 @@ def generate_graphstore(infodata, reference_frame, rawdata = None, plushours = N
         
         
         
-        if not (sc == "NOAA_RTSW" or sc == "STEREO-A_beacon"):
+        if not (sc == "NOAA_RTSW" or sc == "STEREO-A_beacon"  or sc == "NOAA_ARCHIVE"):
             with open(data_file_path, 'wb') as file:
                 p.dump(saved_data, file)
         else:
