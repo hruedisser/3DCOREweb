@@ -16,6 +16,8 @@ from coreweb.dashcore.utils.utils import generate_ensemble, get_iparams_live, ro
 from coreweb.methods.offwebutils import extract_row
 import coreweb.dashcore.utils.heliocats as hc
 
+import coreweb.methods.data_frame_transforms as dft
+
 import heliosat
 
 from coreweb.models.toroidal import thin_torus_gh, thin_torus_qs, thin_torus_sq
@@ -192,9 +194,13 @@ def fullinsitu(observer, t_fit=None, launchtime=None, start=None, end=None, t_s=
     # in situ data
     if ref_frame == "HEEQ":
         b = graph['b_data_HEEQ'][start_index:end_index+1]
+        names = ['B$_X$','B$_Y$','B$_Z$']
+    elif ref_frame == "GSM":
+        b = graph['b_data_GSM'][start_index:end_index+1]
+        names = ['B$_X$','B$_Y$','B$_Z$']
     else:
         b = graph['b_data_RTN'][start_index:end_index+1]
-
+        names = ['B$_R$','B$_T$','B$_N$']
     
     #observer_obj = getattr(heliosat, observer)() # get observer obj
     #logger.info("Using HelioSat to retrieve observer data")
@@ -226,7 +232,12 @@ def fullinsitu(observer, t_fit=None, launchtime=None, start=None, end=None, t_s=
             #print(x,y,z)
             bx,by,bz = hc.separate_components(outa)
             rtn_bx, rtn_by, rtn_bz = hc.convert_HEEQ_to_RTN_mag(x,y,z, bx,by,bz)
-            outa[:, 0],outa[:, 1],outa[:, 2] = rtn_bx, rtn_by, rtn_bz        
+            outa[:, 0],outa[:, 1],outa[:, 2] = rtn_bx, rtn_by, rtn_bz    
+
+            if ref_frame == "GSM":
+                gsm_bx, gsm_by, gsm_bz = dft.RTN_to_GSM(x, y, z, rtn_bx,rtn_by,rtn_bz, t)
+                outa[:, 0],outa[:, 1],outa[:, 2] = gsm_bx, gsm_by, gsm_bz   
+
             if np.any(rtn_bx > 1500) or np.any(rtn_by > 1500) or np.any(rtn_bz > 1500):
                 print(iparams)
                 #return
@@ -243,16 +254,22 @@ def fullinsitu(observer, t_fit=None, launchtime=None, start=None, end=None, t_s=
         data = p.load(file)
         file.close()
         
-        ensemble_filepath = filepath.split('.')[0] + '_ensembles.pickle'
-        with open(ensemble_filepath, 'rb') as ensemble_file:
-            ensemble_data = p.load(ensemble_file)  
-        if ref_frame == 'HEEQ':
-            ed = ensemble_data['ensemble_HEEQ']
+        if ref_frame == 'GSM':
+            ensemble_filepath = filepath.split('.')[0] + '_ensembles_GSM.pickle'
+            with open(ensemble_filepath, 'rb') as ensemble_file:
+                ensemble_data = p.load(ensemble_file)  
+            ed = ensemble_data['ensemble_GSM']
         else:
-            ed = ensemble_data['ensemble_RTN']    
-        #ed = generate_ensemble(filepath, t, reference_frame=ref_frame, reference_frame_to=ref_frame, max_index=max_index)
-        #ed = generate_ensemble(filepath, t, pos, reference_frame=ref_frame, reference_frame_to=ref_frame, max_index=max_index)
-    
+            ensemble_filepath = filepath.split('.')[0] + '_ensembles.pickle'
+            with open(ensemble_filepath, 'rb') as ensemble_file:
+                ensemble_data = p.load(ensemble_file)  
+            if ref_frame == 'HEEQ':
+                ed = ensemble_data['ensemble_HEEQ']
+            else:
+                ed = ensemble_data['ensemble_RTN']    
+            #ed = generate_ensemble(filepath, t, reference_frame=ref_frame, reference_frame_to=ref_frame, max_index=max_index)
+            #ed = generate_ensemble(filepath, t, pos, reference_frame=ref_frame, reference_frame_to=ref_frame, max_index=max_index)
+        
     lw_insitu = 2  # linewidth for plotting the in situ data
     lw_best = 3  # linewidth for plotting the min(eps) run
     lw_mean = 3  # linewidth for plotting the mean run
@@ -303,27 +320,30 @@ def fullinsitu(observer, t_fit=None, launchtime=None, start=None, end=None, t_s=
         plt.plot(t, outam[:, 2], c3, alpha=0.5, linestyle='dashed', lw=lw_mean)    
         
     
-    # finding index of last fitting point (important for plotting the prediction)
-    tempt = []
-    
-    for i in range(len(t)):
-        temptt = t[i].strftime('%Y-%m-%d-%H-%M')
-        tempt.append(temptt)   
-    
-    temp_fit = t_fit[-1].strftime('%Y-%m-%d-%H-%M')
-    #print(temp_fit)
-    
-    tind = tempt.index(temp_fit)
-    #print(tind, t[tind])
-    
-    # plotting magnetic field data
-    plt.plot(t[0:tind], np.sqrt(np.sum(b[0:tind]**2, axis=1)), c0, alpha=0.5, lw=3, label='B$_{TOT}$')
-    plt.plot(t[0:tind], b[0:tind, 0], c1, alpha=1, lw=lw_insitu, label='B$_R$')
-    plt.plot(t[0:tind], b[0:tind, 1], c2, alpha=1, lw=lw_insitu, label='B$_T$')
-    plt.plot(t[0:tind], b[0:tind, 2], c3, alpha=1, lw=lw_insitu, label='B$_N$')
 
     
     if prediction == True:
+
+        # finding index of last fitting point (important for plotting the prediction)
+        tempt = []
+        
+        for i in range(len(t)):
+            temptt = t[i].strftime('%Y-%m-%d-%H-%M')
+            tempt.append(temptt)   
+        
+        temp_fit = t_fit[-1].strftime('%Y-%m-%d-%H-%M')
+        #print(temp_fit)
+        
+        tind = tempt.index(temp_fit)
+        #print(tind, t[tind])
+        
+        # plotting magnetic field data
+        plt.plot(t[0:tind], np.sqrt(np.sum(b[0:tind]**2, axis=1)), c0, alpha=0.5, lw=3, label='B$_{TOT}$')
+        plt.plot(t[0:tind], b[0:tind, 0], c1, alpha=1, lw=lw_insitu, label=names[0])
+        plt.plot(t[0:tind], b[0:tind, 1], c2, alpha=1, lw=lw_insitu, label=names[1])
+        plt.plot(t[0:tind], b[0:tind, 2], c3, alpha=1, lw=lw_insitu, label=names[2])
+
+
         # plotting the magnetic field data as dots from the last fitting point onwards
         plt.plot(t[tind+1:-1], np.sqrt(np.sum(b[tind+1:-1]**2, axis=1)), c0, ls=':', alpha=0.5, lw=3)
         plt.plot(t[tind+1:-1], b[tind+1:-1, 0], c1, ls=':', alpha=1, lw=lw_insitu)
@@ -332,10 +352,10 @@ def fullinsitu(observer, t_fit=None, launchtime=None, start=None, end=None, t_s=
         
     else:
         # plotting the magnetic field data as usual from the last fitting point onwards
-        plt.plot(t[tind+1:-1], np.sqrt(np.sum(b[tind+1:-1]**2, axis=1)), c0, alpha=0.5, lw=3)
-        plt.plot(t[tind+1:-1], b[tind+1:-1, 0], c1, alpha=1, lw=lw_insitu)
-        plt.plot(t[tind+1:-1], b[tind+1:-1, 1], c2, alpha=1, lw=lw_insitu)
-        plt.plot(t[tind+1:-1], b[tind+1:-1, 2], c3, alpha=1, lw=lw_insitu)    
+        plt.plot(t, np.sqrt(np.sum(b**2, axis=1)), c0, alpha=0.5, lw=3, label='B$_{TOT}$')
+        plt.plot(t, b[:, 0], c1, alpha=1, lw=lw_insitu, label=names[0])
+        plt.plot(t, b[:, 1], c2, alpha=1, lw=lw_insitu, label=names[1])
+        plt.plot(t, b[:, 2], c3, alpha=1, lw=lw_insitu, label=names[2])    
 
     #print(iparams)
             
@@ -346,9 +366,10 @@ def fullinsitu(observer, t_fit=None, launchtime=None, start=None, end=None, t_s=
     plt.xticks(rotation=25, ha='right')
     plt.xlim(start,end)
     
-    # plotting lines at t_s and t_e of fit interval
-    plt.axvline(x=t_s, lw=lw_fitp, alpha=0.75, color="k", ls="-.")
-    plt.axvline(x=t_e, lw=lw_fitp, alpha=0.75, color="k", ls="-.")
+    if t_s is not None:# plotting lines at t_s and t_e of fit interval
+        plt.axvline(x=t_s, lw=lw_fitp, alpha=0.75, color="k", ls="-.")
+    if t_e is not None:# plotting lines at t_s and t_e of fit interval
+        plt.axvline(x=t_e, lw=lw_fitp, alpha=0.75, color="k", ls="-.")
     
     #plt.grid(color = 'lightgrey')
 
@@ -360,8 +381,8 @@ def fullinsitu(observer, t_fit=None, launchtime=None, start=None, end=None, t_s=
             plt.axvline(x=_, lw=lw_fitp, alpha=0.25, color="k", ls="--")
             
     if save_fig == True:
-        plt.savefig(filepath[:-7] + 'fullinsitu.png', dpi=300)  
-        plt.savefig(filepath[:-7] + 'fullinsitu.pdf', dpi=300) 
+        plt.savefig(filepath[:-7] + 'fullinsitu' + ref_frame +'.png', dpi=300)  
+        plt.savefig(filepath[:-7] + 'fullinsitu' + ref_frame +'.pdf', dpi=300) 
         
     plt.show()  
 
@@ -393,8 +414,8 @@ def full3d(graph, timesnap, plotoptions, spacecraftoptions=['solo', 'psp'], body
     #earth_color='blue'
     venus_color='orange'
     mercury_color='grey'
-    sta_color='red'
-    bepi_color='coral' 
+    sta_color='darkred'
+    bepi_color='blue' 
 
     sns.set_context("talk")     
 
@@ -421,8 +442,16 @@ def full3d(graph, timesnap, plotoptions, spacecraftoptions=['solo', 'psp'], body
         cmecolor = solo_color
     elif sc == 'PSP':
         cmecolor = psp_color
+    elif sc == 'STEREO-A':
+        cmecolor = sta_color
+    elif sc == 'DSCOVR':
+        cmecolor = earth_color
+    elif sc == 'BEPI':
+        cmecolor = bepi_color
 
     plot_3dcore(ax, model_obj, timesnap, color=cmecolor)
+
+    
 
     if addfield == True:
         plot_3dcore_field(ax, model_obj, timesnap, step_size=0.005, q0=[0.8, 0.1, np.pi/2],color=cmecolor, alpha = .95, lw = .8)
@@ -430,8 +459,11 @@ def full3d(graph, timesnap, plotoptions, spacecraftoptions=['solo', 'psp'], body
     if "Earth" in bodyoptions:
         try:
             plot_planet(ax, graph['bodydata']['Earth']['data'], timesnap, color=earth_color, alpha=0.9, label='Earth')
+            #print(graph['bodydata']['Earth']['data'])
         except Exception as e:
             print('Data for Earth not found: ', e)
+
+    #return fig, ax
 
     ### insert mercury
     ### insert venus
@@ -467,8 +499,9 @@ def add_cme(ax, graph, timesnap, *modelstatevars, addfield = False, launchtime=N
     
     solo_color='coral'
     psp_color='black'
-    sta_color='red'
-    bepi_color='coral' 
+    sta_color='darkred'
+    bepi_color='blue' 
+    earth_color='mediumseagreen'
 
     # model_obj = returnmodel(filepath)
     iparams = get_iparams_live(*modelstatevars)
@@ -479,6 +512,12 @@ def add_cme(ax, graph, timesnap, *modelstatevars, addfield = False, launchtime=N
         cmecolor = solo_color
     elif sc == 'PSP':
         cmecolor = psp_color
+    elif sc == 'STEREO-A':
+        cmecolor = sta_color
+    elif sc == 'DSCOVR':
+        cmecolor = earth_color
+    elif sc == 'BEPI':
+        cmecolor = bepi_color
 
     plot_3dcore(ax, model_obj, timesnap, color=cmecolor)
 
@@ -660,6 +699,10 @@ def plot_longgrid(ax, fontsize=6, color = 'k', text = True, view_radius = 1):
         multip1 = .225
         multip2 = .25
         radii = [0.2]
+    elif view_radius > .9:
+        multip1 = 1.2
+        multip2 = 1.3
+        radii = radii = [0.5, 0.8, 1.]
     else:
         multip1 = .85
         multip2 = .9
@@ -727,7 +770,7 @@ def plot_planet(ax, data_list, nowdate, **kwargs):
 
     now_time_str = [time.strftime("%Y-%m-%d %H:%M:%S") for time in times_now_list]
     ax.scatter3D(x_now, y_now, z_now, s=10, **kwargs)
-    ax.scatter3D(0.3, 0, 0, s=10, **kwargs)
+    #ax.scatter3D(0.3, 0, 0, s=10, **kwargs)
     
     
 def plot_configure(ax, light_source=False, **kwargs):

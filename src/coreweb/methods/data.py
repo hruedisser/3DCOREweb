@@ -478,8 +478,12 @@ def mag_fft(
     """Computes the mean power spectrum distribution from a magnetic field measurements over all three vector components.
     Note: Assumes that P(k) is the same for all three vector components.
     """
+
+    #print(bdt)
     n_s = int(((dt[-1] - dt[0]).total_seconds() / 3600) - 1)
+    #print(n_s)
     n_perseg = np.min([len(bdt), 256])
+    #print(n_perseg)
 
     p_bX = detrend(bdt[:, 0], type="linear", bp=n_s)
     p_bY = detrend(bdt[:, 1], type="linear", bp=n_s)

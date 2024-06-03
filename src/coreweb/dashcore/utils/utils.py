@@ -788,6 +788,11 @@ def get_rt_data(sc, insitubegin, insituend, plushours):
         filertn = '/noaa_archive_gsm.p'
         [data,dataheader]=p.load(open(archivepath + filertn, "rb" )) 
 
+    if (sc == 'STEREO-A-beacon') or (sc == "STEREO_A_beacon"):
+        archivepath = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "data/archive"))
+        filertn = '/stereoa_beacon_rtn_last_400days_now.p'
+        [data,dataheader]=p.load(open(archivepath + filertn, "rb" ) )
+
     # Extract relevant fields
     time = data['time']
     bx = data['bx']
@@ -844,17 +849,27 @@ def get_rt_data(sc, insitubegin, insituend, plushours):
     # b_RTN = np.column_stack((bx[mask], by[mask], bz[mask]))
     # pos = np.column_stack((x[mask], y[mask], z[mask]))
     
-    rtn_bx, rtn_by, rtn_bz = dft.GSM_to_RTN_approx(x,y,z,bx,by,bz,time)
-
-
-    heeq_bx, heeq_by, heeq_bz = dft.GSM_to_HEEQ(x,y,z,bx,by,bz,time)
-    b_HEEQ = np.column_stack((heeq_bx, heeq_by, heeq_bz))
+    if (sc == 'STEREO-A-beacon') or (sc == "STEREO_A_beacon"): 
+        b_RTN = np.column_stack((bx, by, bz))
+        heeq_bx, heeq_by, heeq_bz = dft.RTN_to_HEEQ(x, y, z, bx, by, bz)
+        gsm_bx, gsm_by, gsm_bz = dft.RTN_to_GSM(x, y, z, bx, by, bz, time)
+        b_HEEQ = np.column_stack((heeq_bx, heeq_by, heeq_bz))
+        b_GSM = np.column_stack((gsm_bx, gsm_by, gsm_bz))
     
-    dt = time
-    b_RTN = np.column_stack((rtn_bx, rtn_by, rtn_bz))
-    pos = np.column_stack((x, y, z))
+    else:    
+        rtn_bx, rtn_by, rtn_bz = dft.GSM_to_RTN_approx(x,y,z,bx,by,bz,time)
 
-    b_GSM = np.column_stack((bx, by, bz))
+
+        heeq_bx, heeq_by, heeq_bz = dft.GSM_to_HEEQ(x,y,z,bx,by,bz,time)
+        b_HEEQ = np.column_stack((heeq_bx, heeq_by, heeq_bz))
+    
+       
+        b_RTN = np.column_stack((rtn_bx, rtn_by, rtn_bz))
+        
+        b_GSM = np.column_stack((bx, by, bz))
+    
+    pos = np.column_stack((x, y, z))
+    dt = time
 
     if plushours == None:
         pass
@@ -981,6 +996,10 @@ def get_archivedata(sc, insitubegin, insituend):
     elif (sc == 'STEREO-A') or (sc == "STEREO_A"):
         filertn = '/stereoa_2007_now_rtn.p'
         fileheeq = '/stereoa_2007_now_heeq.p'
+
+    elif (sc == 'STEREO-A-beacon') or (sc == "STEREO_A_beacon"):
+        print(sc)
+        filertn = '/stereoa_beacon_rtn_last_400days_now.p'
         
     elif (sc =='VEX-A') or (sc == "VEX"):
         filertn = '/vex_2007_2014_sceq_removed.p'
@@ -989,6 +1008,7 @@ def get_archivedata(sc, insitubegin, insituend):
     elif sc == 'Wind':
         filertn = '/wind_1995_now_rtn.p'
         fileheeq = '/wind_1995_now_heeq.p'
+        filegse = '/wind_1995_now_gse.p'
         
     [data,dataheader]=p.load(open(archivepath + filertn, "rb" ) )
         
@@ -1047,7 +1067,31 @@ def get_archivedata(sc, insitubegin, insituend):
         
         heeq_bx, heeq_by, heeq_bz = hc.convert_RTN_to_HEEQ_mag(x[mask], y[mask], z[mask], bx[mask], by[mask], bz[mask])
         b_HEEQ = np.column_stack((heeq_bx, heeq_by, heeq_bz))
+
+
+    try:
         
+        [data,dataheader]=p.load(open(archivepath + filegse, "rb" ) ) 
+        print('loaded GSE data')
+        # Extract relevant fields
+        time_gse = data['time']
+        gse_bx = data['bx']
+        gse_by = data['by']
+        gse_bz = data['bz']
+
+        
+
+        # Find indices within the specified time range
+        mask_gsm = (time_gse >= insitubegin) & (time_gse <= insituend)
+        print('converting to GSM')
+        gsm_bx, gsm_by, gsm_bz = dft.GSE_to_GSM(gse_bx[mask_gsm], gse_by[mask_gsm], gse_bz[mask_gsm], time_gse[mask_gsm])
+        print('conversion done')
+        b_gsm = np.column_stack((gsm_bx, gsm_by, gsm_bz))
+        
+    except:
+        
+        b_gsm = None
+
     #heeq_bx, heeq_by, heeq_bz = hc.convert_RTN_to_HEEQ(x[mask], y[mask], z[mask], bx[mask], by[mask], bz[mask])
     #print(heeq_bx)
 
@@ -1058,7 +1102,7 @@ def get_archivedata(sc, insitubegin, insituend):
     #print(pos)
     #print(bx[mask])
     #print(dt)
-    return b_HEEQ, b_RTN, dt, pos
+    return b_HEEQ, b_RTN, b_gsm, dt, pos
 
 
 @functools.lru_cache()    
@@ -1617,7 +1661,7 @@ def loadpickle(path=None, number=-1):
     respath = []
     # we only want the pickle-files
     for file in dir_list:
-        if file.endswith(".pickle") and not file.endswith("ensembles.pickle"):
+        if file.endswith(".pickle") and not file.endswith("ensembles.pickle") and not file.endswith("ensembles_GSM.pickle"):
             resfile.append(file) 
             respath.append(os.path.join(path,file))
             
@@ -1630,12 +1674,18 @@ def loadpickle(path=None, number=-1):
 def load_fit(name, graph):
     
     filepath = loadpickle(name)
+    #print(filepath)
     ensemble_filepath = filepath.split('.')[0] + '_ensembles.pickle'
     
+    #print(ensemble_filepath)
     # read from pickle file
     file = open(filepath, "rb")
     data = p.load(file)
     file.close()
+
+    #print(data)
+    #print(data['model_obj'])
+
     
     if os.path.exists(ensemble_filepath):
         pass

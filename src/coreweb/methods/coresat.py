@@ -36,7 +36,7 @@ class custom_observer(object):
             except:
                 t_data = [time for time in t_data]
                 
-            
+            #print(t_data)
 
             # Find indices where t_data falls within the specified date range
             start_time, end_time = dtp[0].replace(tzinfo=None), dtp[-1].replace(tzinfo=None)
@@ -46,9 +46,12 @@ class custom_observer(object):
             selected_b_data = np.array([b_data[i] for i in indices])
             selected_t_data = np.array([t_data[i] for i in indices])
             
+            #print(len(selected_b_data))
+            #print(len(selected_t_data))
+            #print(sampling_freq)
             
             
-            if sampling_freq and len(selected_t_data) > sampling_freq * 6:
+            if sampling_freq and len(selected_t_data) > sampling_freq * 6 *2:
                 # Return data at the specified sampling frequency
                 selected_b_data = selected_b_data[::sampling_freq]
                 selected_t_data = selected_t_data[::sampling_freq]

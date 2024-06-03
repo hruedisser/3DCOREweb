@@ -931,7 +931,7 @@ def get_uploaddata(data, filename, plushours):
         dt = np.concatenate((dt, np.array([dt[-1] + datetime.timedelta(minutes=i) for i in range(1, int(plushours * 60) + 1)])))
         pos = np.concatenate((pos, np.tile(pos[-1], (int(plushours * 60), 1))))
      
-    return b_HEEQ, b_RTN, dt, pos
+    return b_HEEQ, b_RTN, None, dt, pos
 
 def process_sav(path):
     '''
@@ -1041,37 +1041,68 @@ def generate_graphstore(infodata, reference_frame, rawdata = None, plushours = N
     data_file_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "dashcore/data", f"{newhash[0]}.pkl"))
     
     if os.path.exists(data_file_path) and not (sc == "NOAA_RTSW" or sc == "STEREO-A_beacon"): 
-        # Load data from the file
-        with open(data_file_path, 'rb') as file:             
-            saved_data = p.load(file)
-            b_data_HEEQ = saved_data['b_data_HEEQ']
-            b_data_RTN = saved_data['b_data_RTN']
-            t_data = saved_data['t_data']
-            pos_data = saved_data['pos_data']
-            bodytraces = saved_data['bodytraces']
-            bodydata = saved_data['bodydata']
-            posstore = saved_data['posstore']
+        try:
+            # Load data from the file
+            with open(data_file_path, 'rb') as file:             
+                saved_data = p.load(file)
+                b_data_HEEQ = saved_data['b_data_HEEQ']
+                b_data_RTN = saved_data['b_data_RTN']
+                b_data_GSM = saved_data['b_data_GSM']
+                t_data = saved_data['t_data']
+                pos_data = saved_data['pos_data']
+                bodytraces = saved_data['bodytraces']
+                bodydata = saved_data['bodydata']
+                posstore = saved_data['posstore']
+                
+                
+                if reference_frame == "HEEQ":
+                    b_data = b_data_HEEQ
+                elif reference_frame == "GSM":
+                    b_data = b_data_GSM
+                else:
+                    b_data = b_data_RTN
+        except:
+            # Load data from the file
+            with open(data_file_path, 'rb') as file:             
+                saved_data = p.load(file)
+                b_data_HEEQ = saved_data['b_data_HEEQ']
+                b_data_RTN = saved_data['b_data_RTN']
+                t_data = saved_data['t_data']
+                pos_data = saved_data['pos_data']
+                bodytraces = saved_data['bodytraces']
+                bodydata = saved_data['bodydata']
+                posstore = saved_data['posstore']
+                
+                
+                if reference_frame == "HEEQ":
+                    b_data = b_data_HEEQ
+                else:
+                    b_data = b_data_RTN
             
             
-            if reference_frame == "HEEQ":
-                b_data = b_data_HEEQ
-            else:
-                b_data = b_data_RTN
-            
-            
-            print('Data loaded from ' + data_file_path)
+        print('Data loaded from ' + data_file_path)
             
             
 
     else:
         if infodata['loaded'] is not False:
             print('getting uploaded data')
-            b_data_HEEQ, b_data_RTN, t_data, pos_data = get_uploaddata(rawdata, infodata['loaded'], plushours)
+            b_data_HEEQ, b_data_RTN, b_data_GSM, t_data, pos_data = get_uploaddata(rawdata, infodata['loaded'], plushours)
         else:
             try:
                 if sc == "NOAA_ARCHIVE":
-                     raise Exception("")
-                b_data_HEEQ, b_data_RTN, t_data, pos_data = get_archivedata(sc, insitubegin, insituend)
+                     raise Exception("Using NOAA ARCHVE")
+                if (sc == 'STEREO-A') or (sc == "STEREO_A"):
+                    try:
+                        #print('trying')
+                        b_data_HEEQ, b_data_RTN, b_data_GSM, t_data, pos_data = get_archivedata(sc, insitubegin, insituend)
+                        if len(b_data_HEEQ) == 0:
+                            raise Exception("Data not contained in big Archive, trying recent data")
+                    except:
+                        #print('excepting')
+                        b_data_HEEQ, b_data_RTN, b_data_GSM, t_data, pos_data = get_rt_data("STEREO_A_beacon", insitubegin, insituend, plushours)
+                else:
+                    b_data_HEEQ, b_data_RTN, b_data_GSM, t_data, pos_data = get_archivedata(sc, insitubegin, insituend)
 
                 if len(b_data_HEEQ) == 0:
                     raise Exception("Data not contained in Archive")
@@ -1079,6 +1110,8 @@ def generate_graphstore(infodata, reference_frame, rawdata = None, plushours = N
                 print("Data loaded from Data Archive")
 
             except Exception as e:
+
+                print(e)
 
                 try:
                     if sc == "SYN":
@@ -1113,7 +1146,7 @@ def generate_graphstore(infodata, reference_frame, rawdata = None, plushours = N
 
                         print("Starting automatic download via HelioSat...")
 
-                        b_data_HEEQ, b_data_RTN, t_data, pos_data = get_insitudata(sc, insitubegin, insituend)
+                        b_data_HEEQ, b_data_RTN, b_data_GSM, t_data, pos_data = get_insitudata(sc, insitubegin, insituend)
 
                         print('Insitu data obtained successfully')
 
@@ -1203,23 +1236,7 @@ def generate_graphstore(infodata, reference_frame, rawdata = None, plushours = N
 
 
         # Save obtained data to the file
-        saved_data = {
-            'b_data_HEEQ': b_data_HEEQ,
-            'b_data_RTN': b_data_RTN,
-            't_data': t_data,
-            'bodytraces': bodytraces,
-            'bodydata': bodydata,
-            'pos_data': pos_data,
-            'posstore': posstore,
-        }
-        
-        
-        
-        if not (sc == "NOAA_RTSW" or sc == "STEREO-A_beacon"  or sc == "NOAA_ARCHIVE"):
-            with open(data_file_path, 'wb') as file:
-                p.dump(saved_data, file)
-        else:
-            # Save obtained data to the file
+        try:
             saved_data = {
                 'b_data_HEEQ': b_data_HEEQ,
                 'b_data_RTN': b_data_RTN,
@@ -1230,6 +1247,25 @@ def generate_graphstore(infodata, reference_frame, rawdata = None, plushours = N
                 'pos_data': pos_data,
                 'posstore': posstore,
             }
+
+        except:
+
+            saved_data = {
+                'b_data_HEEQ': b_data_HEEQ,
+                'b_data_RTN': b_data_RTN,
+                't_data': t_data,
+                'bodytraces': bodytraces,
+                'bodydata': bodydata,
+                'pos_data': pos_data,
+                'posstore': posstore,
+            }
+        
+        
+        
+        if not (sc == "NOAA_RTSW" or sc == "STEREO-A_beacon"  or sc == "NOAA_ARCHIVE"):
+            with open(data_file_path, 'wb') as file:
+                p.dump(saved_data, file)
+        else:
             # Get the current date and time as a string
             current_time = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
 
@@ -1248,11 +1284,10 @@ def generate_graphstore(infodata, reference_frame, rawdata = None, plushours = N
         print("An error occurred:", e)
         return {}, {},{}
     
-    
-    if not (sc == "NOAA_RTSW" or sc == "STEREO-A_beacon"):
-        return {'fig' : fig, 'b_data_HEEQ': b_data_HEEQ, 'b_data_RTN': b_data_RTN, 't_data': t_data, 'pos_data': pos_data, 'names': names, 'bodytraces': bodytraces, 'bodydata': bodydata}, posstore, {}
-    else:
+    try:
         return {'fig' : fig, 'b_data_HEEQ': b_data_HEEQ, 'b_data_RTN': b_data_RTN, 'b_data_GSM': b_data_GSM, 't_data': t_data, 'pos_data': pos_data, 'names': names, 'bodytraces': bodytraces, 'bodydata': bodydata}, posstore, {}
+    except:
+        return {'fig' : fig, 'b_data_HEEQ': b_data_HEEQ, 'b_data_RTN': b_data_RTN, 't_data': t_data, 'pos_data': pos_data, 'names': names, 'bodytraces': bodytraces, 'bodydata': bodydata}, posstore, {}
 
 
 
