@@ -219,6 +219,9 @@ def check_animation(pos_array, results, plottheme, graph, reference_frame, rinpu
     if reference_frame == "HEEQ":
         b_data = graph['b_data_HEEQ']
         names = ['Bx', 'By', 'Bz']
+    elif reference_frame == "GSM":
+        b_data = graph['b_data_GSM']
+        names = ['Bx', 'By', 'Bz']
     else:
         b_data = graph['b_data_RTN']
         names = ['Br', 'Bt', 'Bn']
@@ -1040,6 +1043,9 @@ def check_fittingpoints(graph, reference_frame, infodata, view_legend_insitu, sh
     t_data = graph['t_data']
     if reference_frame == "HEEQ":
         b_data = graph['b_data_HEEQ']
+        names = ['Bx', 'By', 'Bz']
+    elif reference_frame == "GSM":
+        b_data = graph['b_data_GSM']
         names = ['Bx', 'By', 'Bz']
     else:
         b_data = graph['b_data_RTN']
