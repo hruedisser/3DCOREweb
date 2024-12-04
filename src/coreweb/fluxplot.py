@@ -28,6 +28,7 @@ import matplotlib as matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 from matplotlib.colors import LightSource
+import matplotlib.lines as mlines
 
 import logging
 
@@ -385,6 +386,8 @@ def fullinsitu(observer, t_fit=None, launchtime=None, start=None, end=None, t_s=
         plt.savefig(filepath[:-7] + 'fullinsitu' + ref_frame +'.pdf', dpi=300) 
         
     plt.show()  
+    plt.savefig('pulsarplots/fittingresults.png')
+
 
 def full3d(graph, timesnap, plotoptions, spacecraftoptions=['solo', 'psp'], bodyoptions=['Earth'], *modelstatevars, viewlegend = False, posstore = None, addfield = False, launchtime=None, 
            title=False, view_azim=0, view_elev=45, view_radius=0.2, black = False, sc = 'SOLO', fontsize = 8, showtext = True):
@@ -466,6 +469,12 @@ def full3d(graph, timesnap, plotoptions, spacecraftoptions=['solo', 'psp'], body
     #return fig, ax
 
     ### insert mercury
+    if "Mercury" in bodyoptions:
+        try:
+            plot_planet(ax, graph['bodydata']['Mercury']['data'], timesnap, color=mercury_color, alpha=0.9, label='Mercury')
+        except Exception as e:
+            print('Data for Mercury not found: ', e)
+
     ### insert venus
     ### insert mars
             
@@ -493,7 +502,6 @@ def full3d(graph, timesnap, plotoptions, spacecraftoptions=['solo', 'psp'], body
         
     
     return fig, ax
-
 
 def add_cme(ax, graph, timesnap, *modelstatevars, addfield = False, launchtime=None, sc = 'SOLO'):
     
@@ -606,7 +614,7 @@ def plot_3dcore(ax, obj, t_snap, light_source=False, **kwargs):
 
     if light_source == False:
         # draw Sun
-        ax.scatter(0, 0, 0, color="y", s=20) 
+        ax.scatter(0, 0, 0, color="y", s=30, label="Sun") 
         
     obj.propagator(t_snap)
     wf_model = obj.visualize_shape(iparam_index=0)  
@@ -622,7 +630,7 @@ def plot_3dcore(ax, obj, t_snap, light_source=False, **kwargs):
 
 def plot_3dcore_field(ax, obj, t_snap, step_size=0.005, q0=[0.8, 0.1, np.pi/2],**kwargs):
     print('Tracing Fieldlines')
-    q0=[0.9, .1, .5]
+    #q0=[0.9, .1, .5]
     q0i =np.array(q0, dtype=np.float32)
     obj.propagator(t_snap)
     fl, qfl = obj.visualize_fieldline(q0, index=0,  steps=10000, step_size=2e-3, return_phi=True)
@@ -789,6 +797,9 @@ def plot_configure(ax, light_source=False, **kwargs):
         ls = LightSource(azdeg=320, altdeg=40)  
         ax.plot_surface(x, y, z, rstride=1, cstride=1, color='yellow', lightsource=ls, linewidth=0, antialiased=False, zorder=5)
     
+        # Create a proxy artist for the Sun to include in the legend
+        #ax.legend(handles=[sun_proxy], loc='upper right')  # Add legend entry for the Sun
+
     ax.set_axis_off()
     
     

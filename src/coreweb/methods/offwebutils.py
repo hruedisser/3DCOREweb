@@ -2048,7 +2048,7 @@ def offwebfit(t_launch, eventinfo, graphstore, multiprocessing, t_s, t_e, t_fit,
         mpool = mp.Pool(processes=njobs) # initialize Pool for multiprocessing
         processes.append(mpool)
     data_obj = FittingData(base_fitter.observers, fit_coord_system, graphstore)
-    data_obj.generate_noise("psd",60)
+    data_obj.generate_noise("psd",30)
    
     kill_flag = False
     pcount = 0

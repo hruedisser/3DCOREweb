@@ -262,34 +262,34 @@ def check_animation(pos_array, results, plottheme, graph, reference_frame, rinpu
     
     
     
+    if plottheme == 'dark' or plottheme == 'dark-simple':
+        template = "plotly_dark"
+        bg_color = 'rgba(255, 255, 255, 0)'
+        line_color = 'white'
+        line_colors =['#c20078','#f97306', '#069af3', 'white']
+        eventshade = "white"
+        framecolor = 'rgba(100, 100, 100, 0.8)'
+        if plottheme == 'dark-simple':
+            cmecolor = 'rgba(100, 100, 100, 0.8)'
+        else:
+            cmecolor = 'orange'
     
+    else:
+        template = "none"  
+        bg_color = 'rgba(0,0,0,0)'
+        line_color = 'black'
+        line_colors =['#c20078','#f97306', '#069af3', '#000000']
+        eventshade = "LightSalmon"
+        framecolor = 'rgba(100, 100, 100, 0.8)'
+        if plottheme == 'light-simple':
+            cmecolor = 'rgba(100, 100, 100, 0.8)'
+        else:
+            cmecolor = 'red'
+        
     ############### POLAR THING ###################
     
     if positions:
-        if plottheme == 'dark' or plottheme == 'dark-simple':
-            template = "plotly_dark"
-            bg_color = 'rgba(255, 255, 255, 0)'
-            line_color = 'white'
-            line_colors =['#c20078','#f97306', '#069af3', 'white']
-            eventshade = "white"
-            framecolor = 'rgba(100, 100, 100, 0.8)'
-            if plottheme == 'dark-simple':
-                cmecolor = 'rgba(100, 100, 100, 0.8)'
-            else:
-                cmecolor = 'orange'
-        
-        else:
-            template = "none"  
-            bg_color = 'rgba(0,0,0,0)'
-            line_color = 'black'
-            line_colors =['#c20078','#f97306', '#069af3', '#000000']
-            eventshade = "LightSalmon"
-            framecolor = 'rgba(100, 100, 100, 0.8)'
-            if plottheme == 'light-simple':
-                cmecolor = 'rgba(100, 100, 100, 0.8)'
-            else:
-                cmecolor = 'red'
-            
+
             
         if "Synthetic Event" in plotoptions:
             model_obj.propagator(roundedlaunch + datetime.timedelta(hours=timeslider))
