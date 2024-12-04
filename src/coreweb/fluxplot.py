@@ -451,6 +451,8 @@ def full3d(graph, timesnap, plotoptions, spacecraftoptions=['solo', 'psp'], body
         cmecolor = earth_color
     elif sc == 'BEPI':
         cmecolor = bepi_color
+    elif sc == 'Wind':
+        cmecolor = wind_color
 
     plot_3dcore(ax, model_obj, timesnap, color=cmecolor)
 
