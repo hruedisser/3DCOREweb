@@ -870,7 +870,10 @@ def get_uploaddata(data, filename, plushours):
             sc = "BEPI"
         elif filename.startswith('pa'):
             sc = "SYN"
-            
+        elif filename.startswith('timeseries'):
+            sc = "SYN"
+
+
         # Check for archive path
         archivepath = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "dashcore/data/archive"))
         file = '/positions_psp_solo_sta_bepi_wind_planets_HEEQ_10min_degrees.p'
@@ -906,7 +909,25 @@ def get_uploaddata(data, filename, plushours):
             dt = time
             b_RTN = np.column_stack((bx, by, bz))
             pos = np.column_stack((posdata[:, 0], posdata[:, 1],  posdata[:, 2]))
+        
+        elif filename.startswith('timeseries'):
+            desired_length = len(time)
             
+            pos_x = data['x']
+            pos_y = data['y']
+            pos_z = data['z']
+
+            posdata = np.empty((desired_length, 3))
+            posdata[:, 0], posdata[:, 1], posdata[:, 2] = pos_x, pos_y, pos_z
+            pos = np.column_stack((posdata[:, 0], posdata[:, 1],  posdata[:, 2]))
+
+            b_HEEQ = np.column_stack((bx, by, bz))
+            b_R, b_T, b_N = hc.convert_HEEQ_to_RTN_mag(posdata[:, 0], posdata[:, 1],  posdata[:, 2], bx, by, bz)
+            b_RTN = np.column_stack((b_R, b_T, b_N))
+
+            dt = time
+
+        
         else:
             posdata = getarchivecoords(sc, begin= time[0]-datetime.timedelta(minutes = 10), end = time[-1], arrays =  '10T', datafile = datafile)
         
@@ -1187,6 +1208,8 @@ def generate_graphstore(infodata, reference_frame, rawdata = None, plushours = N
 
         # Extract the date using regular expression
         date_pattern = r'(\d{8})'
+
+        print(newhash)
 
         match = re.search(date_pattern, newhash[0])
         if match:
@@ -2644,3 +2667,281 @@ def allropeplotter(modelstatevars, timeslide):
 
 
     return fig
+
+
+
+def offwebfit_multi(
+        t_launch, 
+        eventinfo1, 
+        eventinfo2,
+        graphstore1, 
+        graphstore2, 
+        multiprocessing, 
+        t_s1, 
+        t_s2,
+        t_e1,
+        t_e2, 
+        t_fit1, 
+        t_fit2,
+        njobs, itermin, itermax, n_particles, *model_kwargs
+        ):
+    
+    output_file = None
+    iter_i = 0 # keeps track of iterations
+    hist_eps = [] # keeps track of epsilon values
+    hist_time = [] # keeps track of time
+    
+    balanced_iterations = 3
+    time_offsets = [0]
+    eps_quantile = 0.25
+    epsgoal = 0.25
+    kernel_mode = "cm"
+    random_seed = 42
+    summary_type = "norm_rmse"
+    fit_coord_system = 'HEEQ'
+    sc1 = eventinfo1['sc'][0]
+    sc2 = eventinfo2['sc'][0]
+    
+    model_kwargs = model_kwargs[0]
+    
+    outputfile = eventinfo1['id'][0]+ eventinfo2['id'][0]+'_HEEQ'
+    current_datetime = datetime.datetime.now()
+    current_time = current_datetime.strftime("%Y%m%d%H%M")
+    outputpath = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "dashcore/output/"))
+    
+    if isinstance(outputfile, str):
+        outputfilecode = outputpath +'/' + outputfile + "_" + current_time + "/"
+    elif isinstance(outputfile, list) and len(outputfile) == 1 and isinstance(outputfile[0], str):
+        outputfilecode = outputpath + outputfile[0] + "_" + current_time + "/"    
+    
+    
+    
+    base_fitter = BaseMethod()
+    base_fitter.initialize(t_launch, coreweb.ToroidalModel, model_kwargs)
+    base_fitter.add_observer(sc1, t_fit1, t_s1, t_e1)
+    base_fitter.add_observer(sc2, t_fit2, t_s2, t_e2)
+    
+    t_launch = sanitize_dt(t_launch)
+    
+    
+    if multiprocessing == True:
+
+        #global mpool
+        mpool = mp.Pool(processes=njobs) # initialize Pool for multiprocessing
+        processes.append(mpool)
+    data_obj = FittingData(base_fitter.observers, fit_coord_system, graphstore1, graphstore2=graphstore2)
+    data_obj.generate_noise("psd",30)
+   
+    kill_flag = False
+    pcount = 0
+    timer_iter = None
+    
+    try:
+        for iter_i in range(iter_i, itermax):
+            # We first check if the minimum number of 
+            # iterations is reached.If yes, we check if
+            # the target value for epsilon "epsgoal" is reached.
+            reached = False
+
+            if iter_i >= itermin:
+                if hist_eps[-1] < epsgoal:
+                    print("Fitting terminated, target RMSE reached: eps < ", epsgoal)
+                    kill_flag = True
+                    break    
+                    
+            print("Running iteration " + str(iter_i))        
+                    
+            
+            timer_iter = time.time()
+
+            # correct observer arrival times
+
+            if iter_i >= len(time_offsets):
+                _time_offset = time_offsets[-1]
+            else:
+                _time_offset = time_offsets[iter_i]
+
+            data_obj.generate_data(_time_offset)
+            #print(data_obj.data_b)
+            #print(data_obj.data_dt)
+            #print(data_obj.data_o)
+            #print('success datagen')
+
+
+            if len(hist_eps) == 0:
+                eps_init = data_obj.sumstat(
+                    [np.zeros((1, 3))] * len(data_obj.data_b), use_mask=False
+                )[0]
+                # returns summary statistic for a vector of zeroes for each observer                
+                hist_eps = [eps_init, eps_init * 0.98]
+                #hist_eps gets set to the eps_init and 98% of it
+                hist_eps_dim = len(eps_init) # number of observers
+                
+                print("Initial eps_init = ", eps_init)
+                
+
+                model_obj_kwargs = dict(model_kwargs)
+                model_obj_kwargs["ensemble_size"] = n_particles
+                model_obj = base_fitter.model(t_launch, **model_obj_kwargs) # model gets initialized
+            sub_iter_i = 0 # keeps track of subprocesses 
+
+            _random_seed = random_seed + 100000 * iter_i # set random seed to ensure reproducible results
+            # worker_args get stored
+
+            worker_args = (
+                    iter_i,
+                    t_launch,
+                    base_fitter.model,
+                    model_kwargs,
+                    model_obj.iparams_arr,
+                    model_obj.iparams_weight,
+                    model_obj.iparams_kernel_decomp,
+                    data_obj,
+                    summary_type,
+                    hist_eps[-1],
+                    kernel_mode,
+                )
+            
+
+            print("Starting simulations")
+
+            if multiprocessing == True:
+                print("Multiprocessing is used")
+                _results = mpool.starmap(abc_smc_worker, [(*worker_args, _random_seed + i) for i in range(njobs)]) # starmap returns a function for all given arguments
+            else:
+                print("Multiprocessing is not used")
+                _results = starmap(abc_smc_worker, [(*worker_args, _random_seed + i) for i in range(njobs)]) # starmap returns a function for all given arguments
+
+            # the total number of runs depends on the ensemble size set in the model kwargs and the number of jobs
+            total_runs = njobs * int(model_kwargs["ensemble_size"])  #
+            # repeat until enough samples are collected
+            while True:
+                pcounts = [len(r[1]) for r in _results] # number of particles collected per job 
+                _pcount = sum(pcounts) # number of particles collected in total
+                dt_pcount = _pcount - pcount # number of particles collected in current iteration
+                pcount = _pcount # particle count gets updated
+
+                # iparams and according errors get stored in array
+                particles_temp = np.zeros(
+                    (pcount, model_obj.iparams_arr.shape[1]), model_obj.dtype
+                )
+                epses_temp = np.zeros((pcount, hist_eps_dim), model_obj.dtype)
+                for i in range(0, len(_results)):
+                    particles_temp[
+                        sum(pcounts[:i]) : sum(pcounts[: i + 1])
+                    ] = _results[i][0] # results of current iteration are stored
+                    epses_temp[sum(pcounts[:i]) : sum(pcounts[: i + 1])] = _results[
+                        i
+                    ][1] # errors of current iteration are stored
+                    
+                sys.stdout.flush()    
+                print(f"Step {iter_i}:{sub_iter_i} with ({pcount}/{n_particles}) particles", end='\r')
+                  # Flush the output buffer to update the line immediately
+
+
+                if pcount > n_particles:
+                    print(str(pcount) + ' reached particles                     ')
+                    break
+                # if ensemble size isn't reached, continue
+                # random seed gets updated
+
+                _random_seed = (
+                    random_seed + 100000 * iter_i + 1000 * (sub_iter_i + 1)
+                )
+
+                if multiprocessing == True:
+                    _results_ext = mpool.starmap(abc_smc_worker, [(*worker_args, _random_seed + i) for i in range(njobs)]) # starmap returns a function for all given arguments
+                else:
+                    _results_ext = starmap(abc_smc_worker, [(*worker_args, _random_seed + i) for i in range(njobs)]) # starmap returns a function for all given arguments
+
+                _results.extend(_results_ext) #results get appended to _results
+                sub_iter_i += 1
+                # keep track of total number of runs
+                total_runs += njobs * int(model_kwargs["ensemble_size"])  #
+
+                if pcount == 0:
+                    print("No hits, aborting                ")
+                    kill_flag = True
+                    break
+
+            if kill_flag:
+                break
+
+            if pcount > n_particles: # no additional particles are kept
+                particles_temp = particles_temp[:n_particles]
+
+            # if we're in the first iteration, the weights and kernels have to be initialized. Otherwise, they're updated. 
+            if iter_i == 0:
+                model_obj.update_iparams(
+                    particles_temp,
+                    update_weights_kernels=False,
+                    kernel_mode=kernel_mode,
+                ) # replace iparams_arr by particles_temp
+                model_obj.iparams_weight = (
+                    np.ones((n_particles,), dtype=model_obj.dtype) / n_particles
+                )
+                model_obj.update_kernels(kernel_mode=kernel_mode)
+            else:
+                model_obj.update_iparams(
+                    particles_temp,
+                    update_weights_kernels=True,
+                    kernel_mode=kernel_mode,
+                )
+            if isinstance(eps_quantile, float):
+                new_eps = np.quantile(epses_temp, eps_quantile, axis=0)
+                # after the first couple of iterations, the new eps gets simply set to the its maximum value instead of choosing a different eps for each observer
+
+                if balanced_iterations > iter_i:
+                    new_eps[:] = np.max(new_eps)
+
+                hist_eps.append(new_eps)
+                
+            elif isinstance(eps_quantile, list) or isinstance(
+                eps_quantile, np.ndarray
+            ):
+                eps_quantile_eff = eps_quantile ** (1 / hist_eps_dim)  #
+                _k = len(eps_quantile_eff)  #
+                new_eps = np.array(
+                    [
+                        np.quantile(epses_temp, eps_quantile_eff[i], axis=0)[i]
+                        for i in range(_k)
+                    ]
+                )
+                hist_eps.append(new_eps)
+                
+            print(f"Setting new eps: {hist_eps[-2]} => {hist_eps[-1]}")
+                
+
+            hist_time.append(time.time() - timer_iter)
+            
+            print(
+                f"Step {iter_i} done, {total_runs / 1e6:.2f}M runs in {time.time() - timer_iter:.2f} seconds, (total: {time.strftime('%Hh %Mm %Ss', time.gmtime(np.sum(hist_time)))})"
+            )
+            
+            
+            iter_i = iter_i + 1  # iter_i gets updated
+
+            # save output to file 
+            if outputfilecode:
+                output_file = os.path.join(
+                    outputfilecode, "{0:02d}.pickle".format(iter_i - 1)
+                )
+
+                extra_args = {"t_launch": t_launch,
+                  "model_kwargs": model_kwargs,
+                  "hist_eps": hist_eps,
+                  "hist_eps_dim": hist_eps_dim,
+                  "base_fitter": base_fitter,
+                  "model_obj": model_obj,
+                  "data_obj": data_obj,
+                  "epses": epses_temp,
+                 }
+
+                save(output_file, extra_args)
+    finally:
+        for process in processes:
+            process.terminate()
+        pass
+    
+    
+    return output_file
