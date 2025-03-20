@@ -411,6 +411,7 @@ def full3d(graph, timesnap, plotoptions, spacecraftoptions=['solo', 'psp'], body
     solo_color='coral'
     wind_color='mediumseagreen'
     psp_color='black'
+    syn_color="red"
     #sta_color='red'
     #bepi_color='blue' 
 
@@ -453,6 +454,8 @@ def full3d(graph, timesnap, plotoptions, spacecraftoptions=['solo', 'psp'], body
         cmecolor = bepi_color
     elif sc == 'Wind':
         cmecolor = wind_color
+    elif sc == 'SYN':
+        cmecolor = syn_color
 
     plot_3dcore(ax, model_obj, timesnap, color=cmecolor)
 
@@ -528,6 +531,8 @@ def add_cme(ax, graph, timesnap, *modelstatevars, addfield = False, launchtime=N
         cmecolor = earth_color
     elif sc == 'BEPI':
         cmecolor = bepi_color
+    elif sc == "SYN":
+        cmecolor = psp_color
 
     plot_3dcore(ax, model_obj, timesnap, color=cmecolor)
 
@@ -545,7 +550,7 @@ def plot_traj(ax, data_list, date, nowdate, color, sc, **kwargs):
     kwargs["alpha"] = kwargs.pop("alpha", 1)
     #color = kwargs.pop("color", "k")
     kwargs["lw"] = kwargs.pop("lw", .9)
-    kwargs["s"] = kwargs.pop("s", 15)
+    kwargs["s"] = kwargs.pop("s", 20)
     
     try:
         data = np.array(data_list, dtype=[('time', 'O'), ('r', '<f8'), ('lon', '<f8'), ('lat', '<f8'), ('x', '<f8'), ('y', '<f8'), ('z', '<f8')])
@@ -703,7 +708,9 @@ def plot_circle(ax, dist, color=None, **kwargs):
 
 def plot_longgrid(ax, fontsize=6, color = 'k', text = True, view_radius = 1):
 
-    radii = [0.3, 0.5, 0.8]
+    radii = [
+        #0.3, 
+        0.5, 0.8]
 
     if view_radius < .3:
         multip1 = .225
@@ -720,7 +727,7 @@ def plot_longgrid(ax, fontsize=6, color = 'k', text = True, view_radius = 1):
     for r in radii:
         plot_circle(ax, r, color=color)
         if text == True:
-            ax.text(x = -0.05, y = r + 0.02, z = 0, s = f'{r} AU', fontsize = fontsize) 
+            ax.text(x = -0.085, y = r - 0.25, z = 0, s = f'{r} AU', fontsize = fontsize) 
 
     # Create data for the AU lines and their labels
     num_lines = 8
@@ -779,7 +786,7 @@ def plot_planet(ax, data_list, nowdate, **kwargs):
     times_now_list = now_time.tolist()
 
     now_time_str = [time.strftime("%Y-%m-%d %H:%M:%S") for time in times_now_list]
-    ax.scatter3D(x_now, y_now, z_now, s=10, **kwargs)
+    ax.scatter3D(x_now, y_now, z_now, s=20, **kwargs)
     #ax.scatter3D(0.3, 0, 0, s=10, **kwargs)
     
     
