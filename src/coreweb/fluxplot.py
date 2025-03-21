@@ -298,6 +298,8 @@ def fullinsitu(observer, t_fit=None, launchtime=None, start=None, end=None, t_s=
 
     #print( len(ed[0][3][0][start_index:end_index+1]))
     #print( len(outa))
+
+    print(np.shape(ed[0]))
     
     if ensemble == True:
         # plotting the ensemble = 2 sigma spread of ensemble

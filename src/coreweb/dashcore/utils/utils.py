@@ -14,6 +14,8 @@ import numpy as np
 import os
 import sys
 
+from tqdm import tqdm
+
 import plotly.graph_objects as go
 import plotly.express as px
 import seaborn as sns 
@@ -811,7 +813,7 @@ def get_rt_data(sc, insitubegin, insituend, plushours):
 
     # Filter data based on insitubegin
     begin_index = np.where(time >= insitubegin)[0][0]
-    end_index = np.where(time <= insituend + datetime.timedelta(hours=5*24))[0][-1]
+    end_index = np.where(time <= insituend + datetime.timedelta(hours=3*24))[0][-1]
     time = time[begin_index:end_index]
     bx = bx[begin_index:end_index]
     by = by[begin_index:end_index]
@@ -860,7 +862,7 @@ def get_rt_data(sc, insitubegin, insituend, plushours):
         rtn_bx, rtn_by, rtn_bz = dft.GSM_to_RTN_approx(x,y,z,bx,by,bz,time)
 
 
-        heeq_bx, heeq_by, heeq_bz = dft.GSM_to_HEEQ(x,y,z,bx,by,bz,time)
+        heeq_bx, heeq_by, heeq_bz = dft.GSM_to_HEEQ(bx,by,bz,time)
         b_HEEQ = np.column_stack((heeq_bx, heeq_by, heeq_bz))
     
        
@@ -1671,7 +1673,7 @@ def loadpickle(path=None, number=-1):
 
 
         
-def load_fit(name, graph):
+def load_fit(name, graph, perc= 0.95, GSM=True):
     
     filepath = loadpickle(name)
     #print(filepath)
@@ -1686,24 +1688,50 @@ def load_fit(name, graph):
     #print(data)
     #print(data['model_obj'])
 
-    
-    if os.path.exists(ensemble_filepath):
-        pass
-    else:
-        print('Generating and converting ensembles!')
-        # Generate the ensemble data and save it to the file
-        ensemble_HEEQ, ensemble_HEEQ_data = generate_ensemble(filepath, graph['t_data'], graph['pos_data'], reference_frame='HEEQ', reference_frame_to='HEEQ', max_index=data['model_obj'].ensemble_size)
-        ensemble_RTN, ensemble_RTN_data = generate_ensemble(filepath, graph['t_data'], graph['pos_data'], reference_frame='HEEQ', reference_frame_to='RTN', max_index=data['model_obj'].ensemble_size)
+    #print(ensemble_filepath)
 
-        ensemble_data = {
-            'ensemble_HEEQ': ensemble_HEEQ,
-            'ensemble_HEEQ_data': ensemble_HEEQ_data,
-            'ensemble_RTN': ensemble_RTN,
-            'ensemble_RTN_data': ensemble_RTN_data
-        }
-        with open(ensemble_filepath, 'wb') as ensemble_file:
-            p.dump(ensemble_data, ensemble_file)
-            
+    if GSM == True:
+
+        ensemble_filepath_earth = filepath.split('.')[0] + '_ensembles_GSM.pickle'
+
+        if os.path.exists(ensemble_filepath_earth):
+            pass
+        else:
+            print('Generating and converting ensembles for all reference frames!')
+            ensemble_HEEQ, ensemble_RTN, ensemble_GSM, ensemble_HEEQ_data, ensemble_RTN_data, ensemble_GSM_data = generate_ensembles_all(filepath, graph['t_data'], graph['pos_data'], max_index=data['model_obj'].ensemble_size, perc=perc)
+            ensemble_data = {
+                'ensemble_GSM': ensemble_GSM,
+                'ensemble_GSM_data': ensemble_GSM_data
+            }
+            with open(ensemble_filepath_earth, 'wb') as ensemble_file:
+                p.dump(ensemble_data, ensemble_file)
+
+            ensemble_data = {
+                'ensemble_HEEQ': ensemble_HEEQ,
+                'ensemble_HEEQ_data': ensemble_HEEQ_data,
+                'ensemble_RTN': ensemble_RTN,
+                'ensemble_RTN_data': ensemble_RTN_data
+            }
+            with open(ensemble_filepath, 'wb') as ensemble_file:
+                p.dump(ensemble_data, ensemble_file)
+                
+    else:
+        if os.path.exists(ensemble_filepath):
+            pass
+        else:
+            print('Generating and converting ensembles!')
+            # Generate the ensemble data and save it to the file
+            ensemble_HEEQ, ensemble_HEEQ_data = generate_ensemble(filepath, graph['t_data'], graph['pos_data'], reference_frame='HEEQ', reference_frame_to='HEEQ', max_index=data['model_obj'].ensemble_size)
+            ensemble_RTN, ensemble_RTN_data = generate_ensemble(filepath, graph['t_data'], graph['pos_data'], reference_frame='HEEQ', reference_frame_to='RTN', max_index=data['model_obj'].ensemble_size)
+
+            ensemble_data = {
+                'ensemble_HEEQ': ensemble_HEEQ,
+                'ensemble_HEEQ_data': ensemble_HEEQ_data,
+                'ensemble_RTN': ensemble_RTN,
+                'ensemble_RTN_data': ensemble_RTN_data
+            }
+            with open(ensemble_filepath, 'wb') as ensemble_file:
+                p.dump(ensemble_data, ensemble_file)         
             
     
     observers = data['data_obj'].observers
@@ -2027,6 +2055,88 @@ def get_iparams_live(*modelstatevars):
     return model_kwargs
     
 
+def generate_ensembles_all(path:str, dt:datetime.datetime, posdata, perc:float=0.95, max_index=None) -> np.ndarray:  
+
+    ensemble_data_HEEQ = []
+    ensemble_data_RTN = []
+    ensemble_data_GSM = []
+
+    try:
+        ftobj = BaseMethod(path) # load Fitter from path
+    except:
+        ftobj = BaseMethod(path.replace('_ensembles_GSM', ''))
+
+    # simulate flux ropes using iparams from loaded fitter
+    ensemble_HEEQ = np.squeeze(np.array(ftobj.model_obj.simulator(dt, posdata)[0]))
+
+    # how much to keep of the generated ensemble
+    if max_index is None:
+        max_index = ensemble_HEEQ.shape[1]
+
+    ensemble_HEEQ = ensemble_HEEQ[:, :max_index, :]
+
+    x,y,z = posdata[:,0], posdata[:,1], posdata[:,2]
+
+    ensemble_RTN = np.zeros(ensemble_HEEQ.shape)
+    ensemble_GSM = np.zeros(ensemble_HEEQ.shape)
+
+    for k in tqdm(range(0, ensemble_HEEQ.shape[1])):
+        bx_heeq, by_heeq, bz_heeq = ensemble_HEEQ[:,k,0], ensemble_HEEQ[:,k,1], ensemble_HEEQ[:,k,2]
+
+        bx_rtn, by_rtn, bz_rtn = dft.HEEQ_to_RTN(x, y, z, bx_heeq, by_heeq, bz_heeq)
+        ensemble_RTN[:,k,0], ensemble_RTN[:,k,1], ensemble_RTN[:,k,2] = bx_rtn, by_rtn, bz_rtn
+
+        bx_gsm, by_gsm, bz_gsm = dft.RTN_to_GSM(x, y, z, bx_rtn, by_rtn, bz_rtn, dt)
+        ensemble_GSM[:,k,0], ensemble_GSM[:,k,1], ensemble_GSM[:,k,2] = bx_gsm, by_gsm, bz_gsm
+
+    print("Shape of ensemble_HEEQ: ", ensemble_HEEQ.shape)
+    print("Shape of ensemble_RTN: ", ensemble_RTN.shape)
+    print("Shape of ensemble_GSM: ", ensemble_GSM.shape)
+
+    ensemble_HEEQ[np.where(ensemble_HEEQ == 0)] = np.nan
+    ensemble_RTN[np.where(ensemble_RTN == 0)] = np.nan
+    ensemble_GSM[np.where(ensemble_GSM == 0)] = np.nan
+
+    # generate quantiles
+    b_m_HEEQ = np.nanmean(ensemble_HEEQ, axis=1)
+    b_m_RTN = np.nanmean(ensemble_RTN, axis=1)
+    b_m_GSM = np.nanmean(ensemble_GSM, axis=1)
+
+    b_s2p_HEEQ = np.nanquantile(ensemble_HEEQ, 0.5 + perc / 2, axis=1)
+    b_s2n_HEEQ = np.nanquantile(ensemble_HEEQ, 0.5 - perc / 2, axis=1)
+
+    b_s2p_RTN = np.nanquantile(ensemble_RTN, 0.5 + perc / 2, axis=1)
+    b_s2n_RTN = np.nanquantile(ensemble_RTN, 0.5 - perc / 2, axis=1)
+
+    b_s2p_GSM = np.nanquantile(ensemble_GSM, 0.5 + perc / 2, axis=1)
+    b_s2n_GSM = np.nanquantile(ensemble_GSM, 0.5 - perc / 2, axis=1)
+
+    b_t_HEEQ = np.sqrt(np.sum(ensemble_HEEQ**2, axis=2))
+    b_tm_HEEQ = np.nanmean(b_t_HEEQ, axis=1)
+
+    b_t_RTN = np.sqrt(np.sum(ensemble_RTN**2, axis=2))
+    b_tm_RTN = np.nanmean(b_t_RTN, axis=1)
+
+    b_t_GSM = np.sqrt(np.sum(ensemble_GSM**2, axis=2))
+    b_tm_GSM = np.nanmean(b_t_GSM, axis=1)
+
+    b_ts2p_HEEQ = np.nanquantile(b_t_HEEQ, 0.5 + perc / 2, axis=1)
+    b_ts2n_HEEQ = np.nanquantile(b_t_HEEQ, 0.5 - perc / 2, axis=1)
+
+    b_ts2p_RTN = np.nanquantile(b_t_RTN, 0.5 + perc / 2, axis=1)
+    b_ts2n_RTN = np.nanquantile(b_t_RTN, 0.5 - perc / 2, axis=1)
+
+    b_ts2p_GSM = np.nanquantile(b_t_GSM, 0.5 + perc / 2, axis=1)
+    b_ts2n_GSM = np.nanquantile(b_t_GSM, 0.5 - perc / 2, axis=1)
+
+    ensemble_data_HEEQ.append([None, None, (b_s2p_HEEQ, b_s2n_HEEQ), (b_ts2p_HEEQ, b_ts2n_HEEQ)])
+    ensemble_data_RTN.append([None, None, (b_s2p_RTN, b_s2n_RTN), (b_ts2p_RTN, b_ts2n_RTN)])
+    ensemble_data_GSM.append([None, None, (b_s2p_GSM, b_s2n_GSM), (b_ts2p_GSM, b_ts2n_GSM)])
+
+
+
+    return ensemble_data_HEEQ, ensemble_data_RTN, ensemble_data_GSM, ensemble_HEEQ, ensemble_RTN, ensemble_GSM
+
     
 
 
@@ -2071,6 +2181,7 @@ def generate_ensemble(path: str, dt: datetime.datetime, posdata, reference_frame
     #fig = go.Figure()
     # transform frame
     if reference_frame != reference_frame_to:
+        print(np.shape(posdata))
         x,y,z = hc.separate_components(posdata)        
         for k in range(0, ensemble.shape[1]):
             #if np.sum(~np.isnan(ensemble[:, k, :])) > 5000:
@@ -2096,6 +2207,8 @@ def generate_ensemble(path: str, dt: datetime.datetime, posdata, reference_frame
         # Print a new line after progress is complete
         print()
     #fig.show()
+
+    print("Shape of ensemble: ", ensemble.shape)
     
     ensemble[np.where(ensemble == 0)] = np.nan
 

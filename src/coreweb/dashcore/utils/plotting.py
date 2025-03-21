@@ -1069,9 +1069,17 @@ def check_fittingpoints(graph, reference_frame, infodata, view_legend_insitu, sh
     new_end = end + datetime.timedelta(hours=12)
 
     # Filter the data to the new time range
-    mask = (t_data >= new_begin.replace(tzinfo=None)) & (t_data <= new_end.replace(tzinfo=None))
-    t_data = t_data[mask]
-    b_data = b_data[mask]
+    try:
+        mask = (t_data >= new_begin.replace(tzinfo=None)) & (t_data <= new_end.replace(tzinfo=None))
+    except:
+        mask = (np.array(t_data) >= new_begin.replace(tzinfo=None)) & (np.array(t_data) <= new_end.replace(tzinfo=None))
+
+    try:
+        t_data = t_data[mask]
+        b_data = b_data[mask]
+    except:
+        b_data = np.array(b_data)[np.array(mask)]
+        t_data = np.array(t_data)[np.array(mask)]
     
     fig.add_trace(
         go.Scatter(
@@ -1157,12 +1165,13 @@ def check_fittingpoints(graph, reference_frame, infodata, view_legend_insitu, sh
         t_2 = t_1 + interval
         t_3 = t_2 + interval
         t_4 = t_3 + interval
-
-        # Round the times to the nearest 30-minute precision
-        t_1 = t_1 - datetime.timedelta(minutes=t_1.minute % 30, seconds=t_1.second, microseconds=t_1.microsecond)
-        t_2 = t_2 - datetime.timedelta(minutes=t_2.minute % 30, seconds=t_2.second, microseconds=t_2.microsecond)
-        t_3 = t_3 - datetime.timedelta(minutes=t_3.minute % 30, seconds=t_3.second, microseconds=t_3.microsecond)
-        t_4 = t_4 - datetime.timedelta(minutes=t_4.minute % 30, seconds=t_4.second, microseconds=t_4.microsecond)
+        
+        if interval > datetime.timedelta(hours=3):
+            # Round the times to the nearest 30-minute precision
+            t_1 = t_1 - datetime.timedelta(minutes=t_1.minute % 30, seconds=t_1.second, microseconds=t_1.microsecond)
+            t_2 = t_2 - datetime.timedelta(minutes=t_2.minute % 30, seconds=t_2.second, microseconds=t_2.microsecond)
+            t_3 = t_3 - datetime.timedelta(minutes=t_3.minute % 30, seconds=t_3.second, microseconds=t_3.microsecond)
+            t_4 = t_4 - datetime.timedelta(minutes=t_4.minute % 30, seconds=t_4.second, microseconds=t_4.microsecond)
         
         t_fit = [t_1, t_2, t_3, t_4]
     

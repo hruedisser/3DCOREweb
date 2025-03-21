@@ -64,11 +64,12 @@ class FittingData(object):
     reference_frame: str
     sampling_freq: int
 
-    def __init__(self, observers: list, reference_frame: str, graphstore) -> None:
+    def __init__(self, observers: list, reference_frame: str, graphstore,graphstore2 = None) -> None:
         self.observers = observers
         self.reference_frame = reference_frame
         self.length = len(self.observers)
         self.graphstore = graphstore
+        self.graphstore2 = graphstore2
         
 
     def add_noise(self, profiles: np.ndarray) -> np.ndarray:
@@ -173,15 +174,22 @@ class FittingData(object):
                 
                 observer_obj = custom_observer(observer)
                 
-                _, data = observer_obj.get(
-                    [dt_s, dt_e],
-                    self.graphstore['b_data_HEEQ'],
-                    self.graphstore['t_data'],
-                    as_endpoints=True,
-                    sampling_freq = sampling_freq,
-                )
-
-                #print(data)
+                if o == 0:
+                    _, data = observer_obj.get(
+                        [dt_s, dt_e],
+                        self.graphstore['b_data_HEEQ'],
+                        self.graphstore['t_data'],
+                        as_endpoints=True,
+                        sampling_freq = sampling_freq,
+                    )
+                if o == 1:
+                    _, data = observer_obj.get(
+                        [dt_s, dt_e],
+                        self.graphstore2['b_data_HEEQ'],
+                        self.graphstore2['t_data'],
+                        as_endpoints=True,
+                        sampling_freq = sampling_freq,
+                    )
                 
                 data[np.where(data == None)] = 0
                 #print(type(data))
@@ -193,8 +201,11 @@ class FittingData(object):
                     pass
 
                 # fF, fS = power_spectral_density(dt, data, format_for_fft=True)
-                fF, fS = mag_fft(dt, data, sampling_freq=sampling_freq) # computes the mean power spectrum distribution
-
+                
+                try:
+                    fF, fS = mag_fft(dt, data, sampling_freq=sampling_freq) # computes the mean power spectrum distribution
+                except:
+                    fF, fS = mag_fft(dt, data, sampling_freq=2) # computes the mean power spectrum distribution
 
                 kdt = (len(fS) - 1) / (dt[-1].timestamp() - dt[0].timestamp())
                 fT = np.array(
@@ -270,13 +281,23 @@ class FittingData(object):
                 
                 
             observer_obj = custom_observer(observer)
+            
+            if o == 0:
+
+                _, data = observer_obj.get(
+                    dt,
+                    self.graphstore['b_data_HEEQ'],
+                    self.graphstore['t_data'],
+                    as_endpoints=False,
+                )
+            if o == 1:
                 
-            _, data = observer_obj.get(
-                dt,
-                self.graphstore['b_data_HEEQ'],
-                self.graphstore['t_data'],
-                as_endpoints=False,
-            )
+                _, data = observer_obj.get(
+                    dt,
+                    self.graphstore2['b_data_HEEQ'],
+                    self.graphstore2['t_data'],
+                    as_endpoints=False,
+                )
             
             
             # The according magnetic field data 
@@ -285,12 +306,21 @@ class FittingData(object):
             # dt are fitting points, dt_all is with start and end time
             dt_all = [dt_s] + dt + [dt_e] # all time points
 
-            trajectory = observer_obj.trajectory(
-                dt_all,
-                self.graphstore['pos_data'],
-                self.graphstore['t_data'],
-            )
-                # returns the spacecraft trajectory
+            if o == 0:
+                trajectory = observer_obj.trajectory(
+                    dt_all,
+                    self.graphstore['pos_data'],
+                    self.graphstore['t_data'],
+                )
+
+            if o == 1:
+                trajectory = observer_obj.trajectory(
+                    dt_all,
+                    self.graphstore2['pos_data'],
+                    self.graphstore2['t_data'],
+                )
+            
+            # returns the spacecraft trajectory
             # an array containing the data plus one additional 
             # zero each at the beginning and the end is created
             
@@ -479,11 +509,8 @@ def mag_fft(
     Note: Assumes that P(k) is the same for all three vector components.
     """
 
-    #print(bdt)
-    n_s = int(((dt[-1] - dt[0]).total_seconds() / 3600) - 1)
-    #print(n_s)
+    n_s = np.min([int(((dt[-1] - dt[0]).total_seconds() / 3600) - 1), len(bdt)-1])
     n_perseg = np.min([len(bdt), 256])
-    #print(n_perseg)
 
     p_bX = detrend(bdt[:, 0], type="linear", bp=n_s)
     p_bY = detrend(bdt[:, 1], type="linear", bp=n_s)
