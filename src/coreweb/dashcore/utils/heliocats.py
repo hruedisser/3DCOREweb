@@ -53,8 +53,8 @@ def convert_HEEQ_to_RTN_mag(x,y,z,bx,by,bz, printer = True):
 
         #make unit vectors of RTN in basis of HEEQ
         rtn_r=[x[i],y[i],z[i]]/np.linalg.norm([x[i],y[i],z[i]])
-        rtn_t=np.cross(heeq_z,rtn_r)
-        rtn_n=np.cross(rtn_r,rtn_t)
+        rtn_t=np.cross(heeq_z,rtn_r) / np.linalg.norm(np.cross(heeq_z,rtn_r))
+        rtn_n=np.cross(rtn_r,rtn_t) / np.linalg.norm(np.cross(rtn_r,rtn_t))
 
         rtn_bx[i]=bx[i]*np.dot(heeq_x,rtn_r)+by[i]*np.dot(heeq_y,rtn_r)+bz[i]*np.dot(heeq_z,rtn_r)
         rtn_by[i]=bx[i]*np.dot(heeq_x,rtn_t)+by[i]*np.dot(heeq_y,rtn_t)+bz[i]*np.dot(heeq_z,rtn_t)

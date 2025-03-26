@@ -370,7 +370,7 @@ def RTN_to_HEEQ(x, y, z, bx, by, bz):
     # Use einsum for efficient batched dot product
 
     R = np.stack([r_hat, t_hat, n_hat], axis=-1)  # shape: (N, 3, 3)
-    b_heeq = np.einsum('nij,ni->nj', R, b_rtn)
+    b_heeq = np.einsum('nij,nj->ni', R, b_rtn)
 
     heeq_bx, heeq_by, heeq_bz = b_heeq[:, 0], b_heeq[:, 1], b_heeq[:, 2]
     return heeq_bx, heeq_by, heeq_bz
