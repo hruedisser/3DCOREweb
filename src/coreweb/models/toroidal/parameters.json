@@ -127,7 +127,7 @@
         "index": 13,
         "name": "background velocity",
         "distribution": "uniform",
-        "maximum": 700,
+        "maximum": 1500,
         "minimum": 100,
         "boundary": "continuous",
         "label": "v_{sw}"

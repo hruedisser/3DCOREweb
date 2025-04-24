@@ -784,7 +784,7 @@ def get_eventinfo(cat_event, purelysyn = False, custom = False, loaded = False):
         
     else:
 
-        url='https://helioforecast.space/static/sync/icmecat/HELIO4CAST_ICMECAT_v22.csv'
+        url='https://helioforecast.space/static/sync/icmecat/HELIO4CAST_ICMECAT_v23.csv'
         icmecat=pd.read_csv(url)
         starttime = icmecat.loc[:,'icme_start_time']
         idds = icmecat.loc[:,'icmecat_id']
