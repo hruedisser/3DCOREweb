@@ -142,9 +142,10 @@ def signaturecheckfull(many_lats, many_lons, model_obj, rinput, savedir, checkan
         #fig.show()    
                 
     fig.show()    
-    pio.write_image(fig, f"signatureplots/{savedir}.pdf")
+    pio.write_image(fig, os.path.join("signatureplots", f"{savedir}.pdf"))
 
-    with open(f"signatureplots/{savedir}_data.pkl", "wb") as f:
+    filepath = os.path.join("signatureplots", f"{savedir}_data.pkl")
+    with open(filepath, "wb") as f:
         pickle.dump(subplot_data, f)
 
 def signaturecheck(many_lats,many_lons,model_obj, rinput, savedir, checkanimany):
@@ -262,7 +263,8 @@ def signaturecheck(many_lats,many_lons,model_obj, rinput, savedir, checkanimany)
                 
         # Show the figure for each longitude
         # Save the figure for each longitude
-        pio.write_image(fig, f"signatureplots/{savedir}_longitude_{lon}.png")
+        filepath = os.path.join("signatureplots", f"{savedir}_longitude_{lon}.png")
+        pio.write_image(fig, filepath)
                 
                 
 
@@ -875,10 +877,10 @@ def get_uploaddata(data, filename, plushours):
 
 
         # Check for archive path
-        archivepath = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "dashcore/data/archive"))
-        file = '/positions_psp_solo_sta_bepi_wind_planets_HEEQ_10min_degrees.p'
+        archivepath = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "dashcore", "data", "archive", ""))
+        file = os.path.join("positions_psp_solo_sta_bepi_wind_planets_HEEQ_10min_degrees.p")
         try:
-            datafile=p.load(open(archivepath + file, "rb" ) ) 
+            datafile=p.load(open(os.path.join(archivepath, file), "rb" ) ) 
         except:
             try:
                 print("No Archive available, searching Helioforecast")
@@ -961,9 +963,10 @@ def process_sav(path):
     
     sav_data = readsav(path)
     
-    name = path.split('/')[-1]
+    name = os.path.basename(path)
     parts = name.split('_')
-    distance = float(parts[3].split('.')[0]) *0.00465047
+
+    distance = float(parts[3].split('.')[0]) * 0.00465047
     direction = float(parts[1])
     
     
@@ -1059,7 +1062,9 @@ def generate_graphstore(infodata, reference_frame, rawdata = None, plushours = N
         insituend = end + datetime.timedelta(hours=24)
         
     # Check if the data file exists in the "data" folder
-    data_file_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "dashcore/data", f"{newhash[0]}.pkl"))
+    data_file_path = os.path.abspath(os.path.join(
+        os.path.dirname(__file__), "..", "dashcore", "data", f"{newhash[0]}.pkl"
+    ))
     
     if os.path.exists(data_file_path) and not (sc == "NOAA_RTSW" or sc == "STEREO-A_beacon"): 
         try:
@@ -1116,10 +1121,11 @@ def generate_graphstore(infodata, reference_frame, rawdata = None, plushours = N
                 if (sc == 'STEREO-A') or (sc == "STEREO_A"):
                     try:
                         #print('trying')
-                        b_data_HEEQ, b_data_RTN, b_data_GSM, t_data, pos_data = get_archivedata(sc, insitubegin, insituend)
+                        b_data_HEEQ, b_data_RTN, b_data_GSM, t_data, pos_data = get_archivedata(sc, insitubegin, insituend)  
                         if len(b_data_HEEQ) == 0:
                             raise Exception("Data not contained in big Archive, trying recent data")
-                    except:
+                    except Exception as e:
+                        print(f"Failed to load data from big archive: {e}")
                         #print('excepting')
                         b_data_HEEQ, b_data_RTN, b_data_GSM, t_data, pos_data = get_rt_data("STEREO_A_beacon", insitubegin, insituend, plushours)
                 else:
@@ -1184,11 +1190,15 @@ def generate_graphstore(infodata, reference_frame, rawdata = None, plushours = N
           
             
         # Check for archive path
-        archivepath = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "dashcore/data/archive"))
-        file = '/positions_psp_solo_sta_bepi_wind_planets_HEEQ_10min_degrees.p'
+        # Archive path (relative to current file)
+        archivepath = os.path.abspath(os.path.join(
+            os.path.dirname(__file__), "..", "dashcore", "data", "archive"
+        ))
+
+        file = os.path.join("positions_psp_solo_sta_bepi_wind_planets_HEEQ_10min_degrees.p")
 
         try:
-            datafile=p.load(open(archivepath + file, "rb" ) ) 
+            datafile=p.load(open(os.path.join(archivepath, file), "rb" ) ) 
         except Exception as e:
             try:
                 print("No Archive available, searching Helioforecast: ", e)
@@ -2049,12 +2059,12 @@ def offwebfit(t_launch, eventinfo, graphstore, multiprocessing, t_s, t_e, t_fit,
     outputfile = eventinfo['id'][0]+'_HEEQ'
     current_datetime = datetime.datetime.now()
     current_time = current_datetime.strftime("%Y%m%d%H%M")
-    outputpath = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "dashcore/output/"))
+    outputpath = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "dashcore", "output"))    
     
     if isinstance(outputfile, str):
-        outputfilecode = outputpath +'/' + outputfile + "_" + current_time + "/"
+        outputfilecode = os.path.join(outputpath, outputfile + "_" + current_time, "")
     elif isinstance(outputfile, list) and len(outputfile) == 1 and isinstance(outputfile[0], str):
-        outputfilecode = outputpath + outputfile[0] + "_" + current_time + "/"    
+        outputfilecode = os.path.join(outputpath, outputfile[0] + "_" + current_time, "")
     
     
     
@@ -2308,7 +2318,7 @@ def create_movie(degmove, timeres, deltatime, longmove_array, results, plottheme
 
     #print(currentcam)
 
-    path = 'src/coreweb/dashcore/temp/' + current_time + '/'
+    path = os.path.join("src", "coreweb", "dashcore", "temp", current_time, "")
 
     if not os.path.exists(os.path.dirname(path)):
         os.makedirs(os.path.dirname(path))
@@ -2707,12 +2717,12 @@ def offwebfit_multi(
     outputfile = eventinfo1['id'][0]+ eventinfo2['id'][0]+'_HEEQ'
     current_datetime = datetime.datetime.now()
     current_time = current_datetime.strftime("%Y%m%d%H%M")
-    outputpath = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "dashcore/output/"))
+    outputpath = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "dashcore", "output"))
     
     if isinstance(outputfile, str):
-        outputfilecode = outputpath +'/' + outputfile + "_" + current_time + "/"
+        outputfilecode = os.path.join(outputpath, outputfile + "_" + current_time, "")
     elif isinstance(outputfile, list) and len(outputfile) == 1 and isinstance(outputfile[0], str):
-        outputfilecode = outputpath + outputfile[0] + "_" + current_time + "/"    
+        outputfilecode = os.path.join(outputpath, outputfile[0] + "_" + current_time, "") 
     
     
     

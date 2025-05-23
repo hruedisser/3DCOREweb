@@ -589,7 +589,7 @@ def process_sav(list_of_names, list_of_contents):
         tmp_file.write(decoded)
         sav_data = readsav(tmp_file.name)
 
-    name = list_of_names.split('/')[-1]
+    name = os.path.basename(list_of_names)
     parts = name.split('_')
     distance = parts[3].split('.')[0]
     direction = parts[1]
@@ -617,11 +617,14 @@ def process_sav(list_of_names, list_of_contents):
     ll.bt = sav_data.iby
     ll.bn = sav_data.ibz
     
-    uploadpath = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "data/uploaded")) 
+    uploadpath = os.path.abspath(os.path.join(
+        os.path.dirname(__file__), "..", "data", "uploaded"
+    ))
     
     filename = name[:-4] + '.pickle'
     
-    p.dump(ll, open(uploadpath + '/'+ filename, "wb"))
+    file_path = os.path.join(uploadpath, filename)
+    p.dump(ll, open(file_path, "wb"))
     print("Created pickle file from sav: " +filename)
             
     
@@ -636,11 +639,15 @@ def process_cdf(list_of_names, list_of_contents):
     
     data = cdf_to_data(list_of_names, list_of_contents, spacecraft)
     
-    uploadpath = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "data/uploaded")) 
+    uploadpath = os.path.abspath(os.path.join(
+        os.path.dirname(__file__), "..", "data", "uploaded"
+    ))
     
     filename = spacecraft + '_' + firstdate + '.pickle'
     
-    p.dump(data, open(uploadpath + '/'+ filename, "wb"))
+    file_path = os.path.join(uploadpath, filename)
+    with open(file_path, "wb") as f:
+        p.dump(data, f)
     print("Created pickle file from cdf: " +filename)
             
     
@@ -786,14 +793,22 @@ def get_rt_data(sc, insitubegin, insituend, plushours):
     #    url = 'https://helioforecast.space/static/sync/insitu_python/stereoa_beacon_rtn_last_35days_now.p'
     
     if sc == "NOAA_ARCHIVE":
-        archivepath = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "data/archive"))
-        filertn = '/noaa_archive_gsm.p'
-        [data,dataheader]=p.load(open(archivepath + filertn, "rb" )) 
+        # Get absolute path to archive directory
+        archivepath = os.path.abspath(os.path.join(
+            os.path.dirname(__file__), "..", "data", "archive"
+        ))
+
+        # Properly join the filename to the archive path
+        filertn = os.path.join(archivepath, "noaa_archive_gsm.p")
+        [data,dataheader]=p.load(open(filertn, "rb" )) 
 
     if (sc == 'STEREO-A-beacon') or (sc == "STEREO_A_beacon"):
-        archivepath = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "data/archive"))
-        filertn = '/stereoa_beacon_rtn_last_400days_now.p'
-        [data,dataheader]=p.load(open(archivepath + filertn, "rb" ) )
+        archivepath = os.path.abspath(os.path.join(
+            os.path.dirname(__file__), "..", "data", "archive"
+        ))
+
+        filertn = os.path.join(archivepath, "stereoa_beacon_rtn_last_400days_now.p")
+        [data,dataheader]=p.load(open(filertn, "rb" ) )
 
     # Extract relevant fields
     time = data['time']
@@ -896,9 +911,13 @@ def get_uploaddata(filename):
     '''
     used to generate the insitudata for the graphstore from upload (app.py)
     '''
-    uploadpath = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "data/uploaded"))
+    uploadpath = os.path.abspath(os.path.join(
+        os.path.dirname(__file__), "..", "data", "uploaded"
+    ))
 
-    data = p.load(open(uploadpath + '/' + filename, "rb" ) )    
+    file_path = os.path.join(uploadpath, filename)
+    with open(file_path, "rb") as f:
+        data = p.load(f)
 
     # Extract relevant fields
     time = data['time']
@@ -918,10 +937,14 @@ def get_uploaddata(filename):
         sc = "SYN"
         
     # Check for archive path
-    archivepath = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "data/archive"))
-    file = '/positions_psp_solo_sta_bepi_wind_planets_HEEQ_10min_degrees.p'
+    archivepath = os.path.abspath(os.path.join(
+        os.path.dirname(__file__), "..", "data", "archive"
+    ))
+
+    file = os.path.join(archivepath, "positions_psp_solo_sta_bepi_wind_planets_HEEQ_10min_degrees.p")
+
     try:
-        datafile=p.load(open(archivepath + file, "rb" ) ) 
+        datafile=p.load(open(os.path.join(archivepath, file), "rb" ) ) 
     except:
         try:
             print("No Archive available, searching Helioforecast")
@@ -973,47 +996,53 @@ def get_archivedata(sc, insitubegin, insituend):
     used to generate the insitudata for the graphstore from archive (app.py)
     '''
     
-    archivepath = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "data/archive"))
-    
+    archivepath = os.path.abspath(os.path.join(
+        os.path.dirname(__file__), "..", "data", "archive"
+    ))
     filertn = None
 
-    if (sc == 'BepiColombo') or (sc == 'BEPI'):
-        filertn = '/bepi_ob_2019_now_rtn.p'
-        
-    elif sc == 'NOAA_ARCHIVE':
-        filertn = '/noaa_archive_gsm.p'
-        
-    elif sc == 'MESSENGER':
-        filertn = '/messenger_2007_2015_sceq_removed.p'
-        fileheeq = '/messenger_2007_2015_heeq_removed.p'
-        
-    elif sc == 'PSP':
-        filertn = '/psp_2018_now_rtn.p'
-        fileheeq = '/psp_2018_now_heeq.p'
-    
-    elif (sc == 'SolarOrbiter') or (sc == 'SOLO'):
-        filertn = '/solo_2020_now_rtn.p'
-        fileheeq = '/solo_2020_now_heeq.p'
-    
-    elif (sc == 'STEREO-A') or (sc == "STEREO_A"):
-        filertn = '/stereoa_2007_now_rtn.p'
-        fileheeq = '/stereoa_2007_now_heeq.p'
 
-    elif (sc == 'STEREO-A-beacon') or (sc == "STEREO_A_beacon"):
+    if sc in ['BepiColombo', 'BEPI']:
+        filertn = 'bepi_ob_2019_now_rtn.p'
+
+    elif sc == 'NOAA_ARCHIVE':
+        filertn = 'noaa_archive_gsm.p'
+
+    elif sc == 'MESSENGER':
+        filertn = 'messenger_2007_2015_sceq_removed.p'
+        fileheeq = 'messenger_2007_2015_heeq_removed.p'
+
+    elif sc == 'PSP':
+        filertn = 'psp_2018_now_rtn.p'
+        fileheeq = 'psp_2018_now_heeq.p'
+
+    elif sc in ['SolarOrbiter', 'SOLO']:
+        filertn = 'solo_2020_now_rtn.p'
+        fileheeq = 'solo_2020_now_heeq.p'
+
+    elif sc in ['STEREO-A', 'STEREO_A']:
+        filertn = 'stereoa_2007_now_rtn.p'
+        fileheeq = 'stereoa_2007_now_heeq.p'
+
+    elif sc in ['STEREO-A-beacon', 'STEREO_A_beacon']:
         print(sc)
-        filertn = '/stereoa_beacon_rtn_last_400days_now.p'
-        
-    elif (sc =='VEX-A') or (sc == "VEX"):
-        filertn = '/vex_2007_2014_sceq_removed.p'
-        fileheeq = '/vex_2007_2014_heeq_removed.p'
-        
+        filertn = 'stereoa_beacon_rtn_last_400days_now.p'
+
+    elif sc in ['VEX-A', 'VEX']:
+        filertn = 'vex_2007_2014_sceq_removed.p'
+        fileheeq = 'vex_2007_2014_heeq_removed.p'
+
     elif sc == 'Wind':
-        filertn = '/wind_1995_now_rtn.p'
-        fileheeq = '/wind_1995_now_heeq.p'
-        filegse = '/wind_1995_now_gse.p'
+        filertn = 'wind_1995_now_rtn.p'
+        fileheeq = 'wind_1995_now_heeq.p'
+        filegse = 'wind_1995_now_gse.p'
         
-    [data,dataheader]=p.load(open(archivepath + filertn, "rb" ) )
-        
+    file_path = os.path.join(archivepath, filertn)
+    with open(file_path, "rb") as f:
+        data, dataheader = p.load(f)
+    
+    print("loaded RTN data")
+            
     # Extract relevant fields
     time = data['time']
     bx = data['bx']
@@ -1037,8 +1066,12 @@ def get_archivedata(sc, insitubegin, insituend):
     mask = (time >= insitubegin) & (time <= insituend)
     
     try:
-        [data,dataheader]=p.load(open(archivepath + fileheeq, "rb" ) ) 
-    
+        
+        file_path = os.path.join(archivepath, fileheeq)
+        print("trying to load heeq data")
+        with open(file_path, "rb") as f:
+            data, dataheader = p.load(f)
+
         # Extract relevant fields
         time_heeq = data['time']
         heeq_bx = data['bx']
@@ -1066,14 +1099,18 @@ def get_archivedata(sc, insitubegin, insituend):
         b_HEEQ = np.column_stack((heeq_bx[mask_heeq], heeq_by[mask_heeq], heeq_bz[mask_heeq]))
         
     except:
+
+        print("Failed to load heeq data, converting RTN to HEEQ")
         
         heeq_bx, heeq_by, heeq_bz = hc.convert_RTN_to_HEEQ_mag(x[mask], y[mask], z[mask], bx[mask], by[mask], bz[mask])
         b_HEEQ = np.column_stack((heeq_bx, heeq_by, heeq_bz))
 
 
     try:
-        
-        [data,dataheader]=p.load(open(archivepath + filegse, "rb" ) ) 
+        file_path = os.path.join(archivepath, filegse)
+        with open(file_path, "rb") as f:
+            data, dataheader = p.load(f)
+
         print('loaded GSE data')
         # Extract relevant fields
         time_gse = data['time']
@@ -1570,7 +1607,7 @@ def get_catevents(sc, year, month, day):
     Returns events from helioforecast.space filtered by year, month, day, and sc.
     Used during startup.
     '''
-    url = 'https://helioforecast.space/static/sync/icmecat/HELIO4CAST_ICMECAT_v22.csv'
+    url = 'https://helioforecast.space/static/sync/icmecat/HELIO4CAST_ICMECAT_v23.csv'
     icmecat = pd.read_csv(url)
     starttime = icmecat.loc[:, 'icme_start_time']
     idd = icmecat.loc[:, 'icmecat_id']
@@ -1605,7 +1642,7 @@ def load_cat_id(idd):
     '''
     Returns from helioforecast.space the event with a given ID.
     '''
-    url='https://helioforecast.space/static/sync/icmecat/HELIO4CAST_ICMECAT_v22.csv'
+    url='https://helioforecast.space/static/sync/icmecat/HELIO4CAST_ICMECAT_v23.csv'
     icmecat=pd.read_csv(url)
     starttime = icmecat.loc[:,'icme_start_time']
     idds = icmecat.loc[:,'icmecat_id']
@@ -1625,7 +1662,7 @@ def load_cat(date):
     '''
     Returns from helioforecast.space the event list for a given day
     '''
-    url='https://helioforecast.space/static/sync/icmecat/HELIO4CAST_ICMECAT_v22.csv'
+    url='https://helioforecast.space/static/sync/icmecat/HELIO4CAST_ICMECAT_v23.csv'
     icmecat=pd.read_csv(url)
     starttime = icmecat.loc[:,'icme_start_time']
     idd = icmecat.loc[:,'icmecat_id']
@@ -1645,29 +1682,27 @@ def load_cat(date):
             return Event(mobegin[i], end[i], idd[i], sc[i])
         
         
-        
+
 def loadpickle(path=None, number=-1):
+    """Loads the filepath of a pickle file from a given directory inside 'output'."""
 
-    """ Loads the filepath of a pickle file. """
-    
-    path = '/' + path + '/'
-    #print(path)
-    
-    path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "output")) + path
-    #print(path)
+    # Construct the full absolute path
+    base_output_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "output"))
+    full_path = os.path.join(base_output_path, path) if path else base_output_path
 
-    # Get the list of all files in path
-    dir_list = sorted(os.listdir(path))
+    # Get a sorted list of all files in the directory
+    dir_list = sorted(os.listdir(full_path))
 
-    resfile = []
-    respath = []
-    # we only want the pickle-files
-    for file in dir_list:
-        if file.endswith(".pickle") and not file.endswith("ensembles.pickle") and not file.endswith("ensembles_GSM.pickle"):
-            resfile.append(file) 
-            respath.append(os.path.join(path,file))
-            
-    filepath = path + resfile[number]
+    # Filter only relevant pickle files
+    resfile = [
+        file for file in dir_list
+        if file.endswith(".pickle")
+        and not file.endswith("ensembles.pickle")
+        and not file.endswith("ensembles_GSM.pickle")
+    ]
+
+    # Construct the full filepath for the selected file
+    filepath = os.path.join(full_path, resfile[number])
 
     return filepath
 

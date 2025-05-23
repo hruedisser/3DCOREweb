@@ -808,7 +808,7 @@ def plot_insitufig(_, graph, plotoptions, tabledata, infodata, selectedrows, ncl
     ],
     
 )
-def generate_graphstore(infodata, reference_frame, posstore, long_per_hour = None):
+def generate_graphstore(infodata, reference_frame, posstore, long_per_hour = None, rawdata = None, plushours = None):
     
     #print(infodata)
     newhash = infodata['id']
@@ -854,8 +854,8 @@ def generate_graphstore(infodata, reference_frame, posstore, long_per_hour = Non
                 pass
 
     if sc == "SYN":
-        insitubegin = begin #- datetime.timedelta(hours=24)
-        insituend = end + datetime.timedelta(hours=200)
+        insitubegin = begin - datetime.timedelta(hours=24)
+        insituend = end + datetime.timedelta(hours=24)
     else:
         
         insitubegin = begin - datetime.timedelta(hours=24)
@@ -867,32 +867,53 @@ def generate_graphstore(infodata, reference_frame, posstore, long_per_hour = Non
 
     
     if os.path.exists(data_file_path) and not (sc == "NOAA_RTSW" or sc == "STEREO-A_beacon"): #or infodata['loaded'] is not False):
-        # Load data from the file
-
-        with open(data_file_path, 'rb') as file:
-            saved_data = pickle.load(file)
-            b_data_HEEQ = saved_data['b_data_HEEQ']
-            b_data_RTN = saved_data['b_data_RTN']
-            t_data = saved_data['t_data']
-            pos_data = saved_data['pos_data']
-            bodytraces = saved_data['bodytraces']
-            bodydata = saved_data['bodydata']
-            posstore = saved_data['posstore']
+        try:
+            # Load data from the file
+            with open(data_file_path, 'rb') as file:             
+                saved_data = p.load(file)
+                b_data_HEEQ = saved_data['b_data_HEEQ']
+                b_data_RTN = saved_data['b_data_RTN']
+                b_data_GSM = saved_data['b_data_GSM']
+                t_data = saved_data['t_data']
+                pos_data = saved_data['pos_data']
+                bodytraces = saved_data['bodytraces']
+                bodydata = saved_data['bodydata']
+                posstore = saved_data['posstore']
+                
+                
+                if reference_frame == "HEEQ":
+                    b_data = b_data_HEEQ
+                elif reference_frame == "GSM":
+                    b_data = b_data_GSM
+                else:
+                    b_data = b_data_RTN
+        except:
+            # Load data from the file
+            with open(data_file_path, 'rb') as file:             
+                saved_data = p.load(file)
+                b_data_HEEQ = saved_data['b_data_HEEQ']
+                b_data_RTN = saved_data['b_data_RTN']
+                t_data = saved_data['t_data']
+                pos_data = saved_data['pos_data']
+                bodytraces = saved_data['bodytraces']
+                bodydata = saved_data['bodydata']
+                posstore = saved_data['posstore']
+                
+                
+                if reference_frame == "HEEQ":
+                    b_data = b_data_HEEQ
+                else:
+                    b_data = b_data_RTN
             
             
-            if reference_frame == "HEEQ":
-                b_data = b_data_HEEQ
-            else:
-                b_data = b_data_RTN
-            
-            
-            print('Data loaded from ' + data_file_path)
+        print('Data loaded from ' + data_file_path)
             
             
 
     else:
         if infodata['loaded'] is not False:
-            b_data_HEEQ, b_data_RTN, t_data, pos_data = get_uploaddata(infodata['loaded'])
+            print('getting uploaded data')
+            b_data_HEEQ, b_data_RTN, b_data_GSM, t_data, pos_data = get_uploaddata(rawdata, infodata['loaded'], plushours)
         else:
             try:
                 b_data_HEEQ, b_data_RTN, t_data, pos_data = get_archivedata(sc, insitubegin, insituend)
@@ -926,11 +947,13 @@ def generate_graphstore(infodata, reference_frame, posstore, long_per_hour = Non
 
                     elif (sc == "NOAA_RTSW") or (sc == "STEREO-A_beacon"):
                        
-                        insitubegin = begin - datetime.timedelta(hours=72*2)
+                        # insitubegin = begin - datetime.timedelta(hours=72*2)
                         
-                        insituend = end + datetime.timedelta(hours=72*2)
-                        print('Loading realtime data between ' + str(insitubegin) + ' and ' + str(insituend))
-                        b_data_HEEQ, b_data_RTN, t_data, pos_data = get_rt_data(sc, insitubegin, insituend)
+                        # insituend = end + datetime.timedelta(hours=72*2)
+                        # print('Loading realtime data between ' + str(insitubegin) + ' and ' + str(insituend))
+                        # b_data_HEEQ, b_data_RTN, t_data, pos_data = get_rt_data(sc, insitubegin, insituend)
+                        print('Loading realtime data...')
+                        b_data_HEEQ, b_data_RTN, b_data_GSM, t_data, pos_data = get_rt_data(sc, insitubegin, insituend, plushours)
                         #print(t_data)
                         if len(b_data_HEEQ) == 0:
                             raise Exception("Data not contained in Archive")
@@ -1037,15 +1060,29 @@ def generate_graphstore(infodata, reference_frame, posstore, long_per_hour = Non
 
 
         # Save obtained data to the file
-        saved_data = {
-            'b_data_HEEQ': b_data_HEEQ,
-            'b_data_RTN': b_data_RTN,
-            't_data': t_data,
-            'bodytraces': bodytraces,
-            'bodydata': bodydata,
-            'pos_data': pos_data,
-            'posstore': posstore,
-        }
+        try:
+            saved_data = {
+                'b_data_HEEQ': b_data_HEEQ,
+                'b_data_RTN': b_data_RTN,
+                'b_data_GSM': b_data_GSM,
+                't_data': t_data,
+                'bodytraces': bodytraces,
+                'bodydata': bodydata,
+                'pos_data': pos_data,
+                'posstore': posstore,
+            }
+
+        except:
+
+            saved_data = {
+                'b_data_HEEQ': b_data_HEEQ,
+                'b_data_RTN': b_data_RTN,
+                't_data': t_data,
+                'bodytraces': bodytraces,
+                'bodydata': bodydata,
+                'pos_data': pos_data,
+                'posstore': posstore,
+            }
         
         
         
@@ -1072,7 +1109,10 @@ def generate_graphstore(infodata, reference_frame, posstore, long_per_hour = Non
         return {}, {},fail_icon
     
     
-    return {'fig': fig,  'b_data_HEEQ': b_data_HEEQ, 'b_data_RTN': b_data_RTN, 't_data': t_data, 'pos_data': pos_data, 'names': names, 'bodytraces': bodytraces, 'bodydata': bodydata}, posstore, success_icon
+    try:
+        return {'fig' : fig, 'b_data_HEEQ': b_data_HEEQ, 'b_data_RTN': b_data_RTN, 'b_data_GSM': b_data_GSM, 't_data': t_data, 'pos_data': pos_data, 'names': names, 'bodytraces': bodytraces, 'bodydata': bodydata}, posstore, {}
+    except:
+        return {'fig' : fig, 'b_data_HEEQ': b_data_HEEQ, 'b_data_RTN': b_data_RTN, 't_data': t_data, 'pos_data': pos_data, 'names': names, 'bodytraces': bodytraces, 'bodydata': bodydata}, posstore, {}
 
 
 # Define a callback to handle the cancellation button
